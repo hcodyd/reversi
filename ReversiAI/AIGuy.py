@@ -33,6 +33,9 @@ class AiGuy:
         if depth_to_go == 0:
             return self.score_board(self.board)
         fake_state[valid_move[0]][valid_move[1]] = self.me
+        # self.get_valid_moves(self.rnd, self.me, fakeState)
+
+
 
     def score_board(self, board):
         board = np.matrix(board)
@@ -129,7 +132,7 @@ class AiGuy:
 
         return False
 
-    def get_valid_moves(self, rnd, me):
+    def get_valid_moves(self, rnd, me, fakestate = False):
         """
         Generates the set of valid moves for the player
         :param rnd: what number round the game is currently at.
@@ -137,22 +140,38 @@ class AiGuy:
         :return: A list of valid moves
         """
         valid_moves = []
-
-        if rnd < 4:
-            if self.state[3, 3] == 0:
-                valid_moves.append([3, 3])
-            if self.state[3, 4] == 0:
-                valid_moves.append([3, 4])
-            if self.state[4, 3] == 0:
-                valid_moves.append([4, 3])
-            if self.state[4, 4] == 0:
-                valid_moves.append([4, 4])
+        if fakestate:
+            if rnd < 4:
+                if fakestate[3][3] == 0:
+                    valid_moves.append([3, 3])
+                if fakestate[3][4] == 0:
+                    valid_moves.append([3, 4])
+                if fakestate[4][3] == 0:
+                    valid_moves.append([4, 3])
+                if fakestate[4][4] == 0:
+                    valid_moves.append([4, 4])
+            else:
+                for i in range(8):
+                    for j in range(8):
+                        if fakestate[i][j] == 0:
+                            if self.could_be(i, j, me):
+                                valid_moves.append([i, j])
         else:
-            for i in range(8):
-                for j in range(8):
-                    if self.state[i, j] == 0:
-                        if self.could_be(i, j, me):
-                            valid_moves.append([i, j])
+            if rnd < 4:
+                if self.state[3][3] == 0:
+                    valid_moves.append([3, 3])
+                if self.state[3][4] == 0:
+                    valid_moves.append([3, 4])
+                if self.state[4][3] == 0:
+                    valid_moves.append([4, 3])
+                if self.state[4][4] == 0:
+                    valid_moves.append([4, 4])
+            else:
+                for i in range(8):
+                    for j in range(8):
+                        if self.state[i][j] == 0:
+                            if self.could_be(i, j, me):
+                                valid_moves.append([i, j])
 
         return valid_moves
 
@@ -203,7 +222,7 @@ class AiGuy:
             for j in range(8):
                 self.state[i, j] = int(message[count])
                 count += 1
-
+        self.rnd = rnd
         return turn, rnd
 
     def play_game(self, me, host):
