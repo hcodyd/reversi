@@ -12,14 +12,13 @@ class AiGuy:
     UPPER_RIGHT = [0, 7]
     LOWER_LEFT = [7, 0]
     LOWER_RIGHT = [7, 7]
-    me = 0
+    me = 0  # this will be set by the server to either 1 or 2
 
     t1 = 0.0  # the amount of time remaining to player 1
     t2 = 0.0  # the amount of time remaining to player 2
 
-    state = np.zeros((8,8))
+    state = np.zeros((8, 8))
 
-    
     def __init__(self):
         print('Argument List:', str(sys.argv))
         self.play_game(int(sys.argv[2]), sys.argv[1])
@@ -30,12 +29,10 @@ class AiGuy:
         for i in range(len(valid_moves)):
             self.maximize(valid_moves[i], depth_to_go, deepcopy(self.state))
 
-    def maximize(self, valid_move, depth_to_go, fakeState):
+    def maximize(self, valid_move, depth_to_go, fake_state):
         if depth_to_go == 0:
             return self.score_board(self.board)
-        fakeState[valid_move[0]][valid_move[1]] = self.me
-
-
+        fake_state[valid_move[0]][valid_move[1]] = self.me
 
     def score_board(self, board):
         board = np.matrix(board)
@@ -55,7 +52,8 @@ class AiGuy:
         """
         corner_move = []
         for i in range(0, len(valid_moves)):
-            if (valid_moves[i] == self.UPPER_LEFT) or (valid_moves[i] == self.UPPER_RIGHT) or (valid_moves[i] == self.LOWER_LEFT) or (
+            if (valid_moves[i] == self.UPPER_LEFT) or (valid_moves[i] == self.UPPER_RIGHT) or (
+                    valid_moves[i] == self.LOWER_LEFT) or (
                     valid_moves[i] == self.LOWER_RIGHT):
                 corner_move.append(i)
         if len(corner_move) > 0:
@@ -64,7 +62,8 @@ class AiGuy:
 
         side_move = []
         for i in range(0, len(valid_moves)):
-            if (valid_moves[i][0] == 0) or (valid_moves[i][0] == 7) or (valid_moves[i][1] == 0) or (valid_moves[i][1] == 7):
+            if (valid_moves[i][0] == 0) or (valid_moves[i][0] == 7) or (valid_moves[i][1] == 0) or (
+                    valid_moves[i][1] == 7):
                 side_move.append(i)
         if len(side_move) > 0:
             rand = randint(0, len(side_move) - 1)
@@ -91,7 +90,7 @@ class AiGuy:
             if (r < 0) or (r > 7) or (c < 0) or (c > 7):
                 break
 
-            sequence.append(self.state[r][c])
+            sequence.append(self.state[r, c])
 
         count = 0
         for i in range(len(sequence)):
@@ -140,18 +139,18 @@ class AiGuy:
         valid_moves = []
 
         if rnd < 4:
-            if self.state[3][3] == 0:
+            if self.state[3, 3] == 0:
                 valid_moves.append([3, 3])
-            if self.state[3][4] == 0:
+            if self.state[3, 4] == 0:
                 valid_moves.append([3, 4])
-            if self.state[4][3] == 0:
+            if self.state[4, 3] == 0:
                 valid_moves.append([4, 3])
-            if self.state[4][4] == 0:
+            if self.state[4, 4] == 0:
                 valid_moves.append([4, 4])
         else:
             for i in range(8):
                 for j in range(8):
-                    if self.state[i][j] == 0:
+                    if self.state[i, j] == 0:
                         if self.could_be(i, j, me):
                             valid_moves.append([i, j])
 
@@ -202,7 +201,7 @@ class AiGuy:
         count = 4
         for i in range(8):
             for j in range(8):
-                self.state[i][j] = int(message[count])
+                self.state[i, j] = int(message[count])
                 count += 1
 
         return turn, rnd
