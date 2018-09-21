@@ -17,7 +17,9 @@ class AiGuy:
     t1 = 0.0  # the amount of time remaining to player 1
     t2 = 0.0  # the amount of time remaining to player 2
 
-    state = [[0 for x in range(8)] for y in range(8)]  # state[0][0] is the bottom left corner of the board (on the GUI)
+    state = np.zeros((8,8))
+
+    
     def __init__(self):
         print('Argument List:', str(sys.argv))
         self.play_game(int(sys.argv[2]), sys.argv[1])
