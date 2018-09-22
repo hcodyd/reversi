@@ -24,12 +24,23 @@ class AiGuy:
         print('Argument List:', str(sys.argv))
         self.play_game(int(sys.argv[2]), sys.argv[1])
 
+    def alph_beta(self, valid_moves):
+        best_move = []
+        depth_to_go = 4
+        alpha = -999999
+        beta = 999999
+        for i in range(len(valid_moves)):
+            best_move.append(self.maximize_ab(valid_moves[i], depth_to_go, deepcopy(self.state), self.rnd, alpha, beta))
+        return best_move.index(max(best_move))
+
     def min_max(self, valid_moves):
         best_move = []
         depth_to_go = 4
         for i in range(len(valid_moves)):
             best_move.append(self.maximize(valid_moves[i], depth_to_go, deepcopy(self.state), self.rnd))
         return best_move.index(max(best_move))
+
+
 
     def maximize(self, valid_move, depth_to_go, fake_state, rnd):
         if depth_to_go == 0:
@@ -57,6 +68,45 @@ class AiGuy:
         move_returned_values = []
         for i in range(len(valid_moves_max)):
             move_returned_values.append(self.maximize(valid_moves_max[i], (depth_to_go-1), deepcopy(new_fake_state), rnd+1))
+        if len(move_returned_values) == 0:
+            move_returned_values.append(0)
+        return np.amin(move_returned_values)
+
+    def maximize_ab(self, valid_move, depth_to_go, fake_state, rnd, alpha, beta):
+        if depth_to_go == 0:
+            return self.score_board(fake_state, self.me)
+        # fake_state[valid_move[0]][valid_move[1]] = self.me
+        new_fake_state = self.flipmoves(fake_state, valid_move, self.me, self.not_me)
+        #check for flips from that move and get the new state  new_fake_state
+        valid_moves_min = self.get_valid_moves(rnd+1, self.not_me, new_fake_state)
+
+        move_returned_values = []
+        for i in range(len(valid_moves_min)):
+            value = self.minimize_ab(valid_moves_min[i], (depth_to_go-1), deepcopy(new_fake_state), rnd+1,alpha,beta)
+            if value >= beta:
+                return value
+            alpha = max(value, alpha)
+            move_returned_values.append(value)
+        if len(move_returned_values) == 0:
+            move_returned_values.append(0)
+        return np.amax(move_returned_values)
+
+
+    def minimize_ab(self, valid_move, depth_to_go, fake_state, rnd, alpha, beta):
+        if depth_to_go == 0:
+            return self.score_board(fake_state, self.not_me)
+        # fake_state[valid_move[0]][valid_move[1]] = self.me
+        new_fake_state = self.flipmoves(fake_state, valid_move, self.not_me, self.me)
+        #check for flips from that move and get the new state  new_fake_state
+        valid_moves_max = self.get_valid_moves(rnd+1, self.me, new_fake_state)
+
+        move_returned_values = []
+        for i in range(len(valid_moves_max)):
+            value = (self.maximize_ab(valid_moves_max[i], (depth_to_go-1), deepcopy(new_fake_state), rnd+1,alpha,beta))
+            if value <= alpha:
+                return value
+            beta = min(beta, value)
+            move_returned_values.append(value)
         if len(move_returned_values) == 0:
             move_returned_values.append(0)
         return np.amin(move_returned_values)
@@ -418,7 +468,7 @@ class AiGuy:
                 self.print_game_state()
 
                 valid_moves = self.get_valid_moves(status[1], me)  # status[1] has round
-                my_move = self.min_max(valid_moves)  # TODO: Call your move function instead. NOTE: This returns an *index*
+                my_move = self.alph_beta(valid_moves)  # TODO: Call your move function instead. NOTE: This returns an *index*
 
                 print("Valid moves: {}".format(valid_moves))
                 print("Selected move: {}".format(valid_moves[my_move]))
