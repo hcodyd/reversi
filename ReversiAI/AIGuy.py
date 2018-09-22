@@ -13,6 +13,7 @@ class AiGuy:
     LOWER_LEFT = [7, 0]
     LOWER_RIGHT = [7, 7]
     me = 0  # this will be set by the server to either 1 or 2
+    not_me = 0 #used for keeping track when flipping
 
     t1 = 0.0  # the amount of time remaining to player 1
     t2 = 0.0  # the amount of time remaining to player 2
@@ -25,26 +26,193 @@ class AiGuy:
 
     def min_max(self, valid_moves):
         best_move = []
-        depth_to_go = 9
+        depth_to_go = 4
         for i in range(len(valid_moves)):
-            self.maximize(valid_moves[i], depth_to_go, deepcopy(self.state))
+            best_move.append(self.maximize(valid_moves[i], depth_to_go, deepcopy(self.state), self.rnd))
+        return best_move.index(max(best_move))
 
-    def maximize(self, valid_move, depth_to_go, fake_state):
+    def maximize(self, valid_move, depth_to_go, fake_state, rnd):
         if depth_to_go == 0:
-            return self.score_board(self.board)
-        fake_state[valid_move[0]][valid_move[1]] = self.me
-        # self.get_valid_moves(self.rnd, self.me, fakeState)
+            return self.score_board(fake_state, self.me)
+        # fake_state[valid_move[0]][valid_move[1]] = self.me
+        new_fake_state = self.flipmoves(fake_state, valid_move, self.me, self.not_me)
+        #check for flips from that move and get the new state  new_fake_state
+        valid_moves_min = self.get_valid_moves(rnd+1, self.not_me, new_fake_state)
+
+        move_returned_values = []
+        for i in range(len(valid_moves_min)):
+            move_returned_values.append(self.minimize(valid_moves_min[i], (depth_to_go-1), deepcopy(new_fake_state), rnd+1))
+        if len(move_returned_values) == 0:
+            move_returned_values.append(0)
+        return np.amax(move_returned_values)
+
+    def minimize(self, valid_move, depth_to_go, fake_state, rnd):
+        if depth_to_go == 0:
+            return self.score_board(fake_state, self.not_me)
+        # fake_state[valid_move[0]][valid_move[1]] = self.me
+        new_fake_state = self.flipmoves(fake_state, valid_move, self.not_me, self.me)
+        #check for flips from that move and get the new state  new_fake_state
+        valid_moves_max = self.get_valid_moves(rnd+1, self.me, new_fake_state)
+
+        move_returned_values = []
+        for i in range(len(valid_moves_max)):
+            move_returned_values.append(self.maximize(valid_moves_max[i], (depth_to_go-1), deepcopy(new_fake_state), rnd+1))
+        if len(move_returned_values) == 0:
+            move_returned_values.append(0)
+        return np.amin(move_returned_values)
+
+
+    def flipmoves(self, board, move, me, not_me):
+        fake_board = deepcopy(board)
+        fake_board[move[0]][move[1]] = me
+        #look up the coll
+        vals_to_potentially_flip = []
+        for i in range(move[0], 0, -1):
+            if fake_board[i][move[1]] == not_me:
+                vals_to_potentially_flip.append([i, move[1]])
+            if fake_board[i][move[1]] == 0 and len(vals_to_potentially_flip) > 0:
+                vals_to_potentially_flip.clear()
+                break
+            if fake_board[i][move[1]] == me and len(vals_to_potentially_flip) > 0:
+                for j in vals_to_potentially_flip:
+                    fake_board[j[0]][j[1]] = me
+                vals_to_potentially_flip.clear()
+                break
+            if fake_board[i][move[1]] == 0:
+                break
+
+        #look down the coll
+        for i in range(move[0], len(fake_board[0])):
+            if fake_board[i][move[1]] == not_me:
+                vals_to_potentially_flip.append([i, move[1]])
+            if fake_board[i][move[1]] == 0 and len(vals_to_potentially_flip) > 0:
+                vals_to_potentially_flip.clear()
+                break
+            if fake_board[i][move[1]] == me and len(vals_to_potentially_flip) > 0:
+                for j in vals_to_potentially_flip:
+                    fake_board[j[0]][j[1]] = me
+                vals_to_potentially_flip.clear()
+                break
+            if fake_board[i][move[1]] == 0:
+                break
+
+        #look left down the row
+        for i in range(move[1], 0, -1):
+            if fake_board[move[0]][i] == not_me:
+                vals_to_potentially_flip.append([move[0], i])
+            if fake_board[move[0]][i] == 0 and len(vals_to_potentially_flip) > 0:
+                vals_to_potentially_flip.clear()
+                break
+            if fake_board[move[0]][i] == me and len(vals_to_potentially_flip) > 0:
+                for j in vals_to_potentially_flip:
+                    fake_board[j[0]][j[1]] = me
+                vals_to_potentially_flip.clear()
+                break
+            if fake_board[move[0]][i] == 0:
+                break
+
+        #look right down the row
+        for i in range(move[1], len(fake_board[0])):
+            if fake_board[move[0]][i] == not_me:
+                vals_to_potentially_flip.append([move[0],i])
+            if fake_board[move[0]][i] == 0 and len(vals_to_potentially_flip) > 0:
+                vals_to_potentially_flip.clear()
+                break
+            if fake_board[move[0]][i] == me and len(vals_to_potentially_flip) > 0:
+                for j in vals_to_potentially_flip:
+                    fake_board[j[0]][j[1]] = me
+                vals_to_potentially_flip.clear()
+                break
+            if fake_board[move[0]][i] == 0:
+                break
+        #look diagonal up
+        upval = move[0]
+        for i in range(move[1], len(fake_board[0])):
+            if upval == -1:
+                break
+            if fake_board[upval][i] == not_me:
+                vals_to_potentially_flip.append([upval, i])
+            if fake_board[upval][i] == 0 and len(vals_to_potentially_flip) > 0:
+                vals_to_potentially_flip.clear()
+                break
+            if fake_board[upval][i] == me and len(vals_to_potentially_flip) > 0:
+                for j in vals_to_potentially_flip:
+                    fake_board[j[0]][j[1]] = me
+                vals_to_potentially_flip.clear()
+                break
+            if fake_board[upval][i] == 0:
+                break
+            upval -= 1
+        #look diagonal down
+        upval = move[0]
+        for i in range(move[1], len(fake_board[0])):
+            if upval > 7:
+                break
+            if fake_board[upval][i] == not_me:
+                vals_to_potentially_flip.append([upval, i])
+            if fake_board[upval][i] == 0 and len(vals_to_potentially_flip) > 0:
+                vals_to_potentially_flip.clear()
+                break
+            if fake_board[upval][i] == me and len(vals_to_potentially_flip) > 0:
+                for j in vals_to_potentially_flip:
+                    fake_board[j[0]][j[1]] = me
+                vals_to_potentially_flip.clear()
+                break
+            if fake_board[upval][i] == 0:
+                break
+            upval += 1
+
+        #look diagonal up and back
+        upval = move[0]
+        for i in range(move[1], 0, -1):
+            if upval == -1:
+                break
+            if fake_board[upval][i] == not_me:
+                vals_to_potentially_flip.append([upval, i])
+            if fake_board[upval][i] == 0 and len(vals_to_potentially_flip) > 0:
+                vals_to_potentially_flip.clear()
+                break
+            if fake_board[upval][i] == me and len(vals_to_potentially_flip) > 0:
+                for j in vals_to_potentially_flip:
+                    fake_board[j[0]][j[1]] = me
+                vals_to_potentially_flip.clear()
+                break
+            if fake_board[upval][i] == 0:
+                break
+            upval -= 1
+
+        #look diagonal down and back
+        upval = move[0]
+        for i in range(move[1], 0, -1):
+            if upval > 7:
+                break
+            if fake_board[upval][i] == not_me:
+                vals_to_potentially_flip.append([upval, i])
+            if fake_board[upval][i] == 0 and len(vals_to_potentially_flip) > 0:
+                vals_to_potentially_flip.clear()
+                break
+            if fake_board[upval][i] == me and len(vals_to_potentially_flip) > 0:
+                for j in vals_to_potentially_flip:
+                    fake_board[j[0]][j[1]] = me
+                vals_to_potentially_flip.clear()
+                break
+            if fake_board[upval][i] == 0:
+                break
+            upval += 1
+
+        return fake_board
 
 
 
-    def score_board(self, board):
+
+    def score_board(self, board, me):
         board = np.matrix(board)
         player_one_score = np.count_nonzero(board == 1)
         player_two_score = np.count_nonzero(board == 2)
-        if self.me == 1:
-            return player_one_score
+        if me == 1:
+            return np.abs(player_one_score)
         else:
-            return player_two_score
+            return np.abs(player_two_score)
         print("player2: ", player_one_score, "player 1:", player_two_score)
 
     def move(self, valid_moves):
@@ -75,7 +243,7 @@ class AiGuy:
         my_move = randint(0, len(valid_moves) - 1)
         return my_move
 
-    def check_dir(self, row, col, incx, incy, me):
+    def check_dir(self, row, col, incx, incy, me, fakestate = []):
         """
         Figures out if the move at row,col is valid for the given player.
         :param row: the row of the unoccupied square (int)
@@ -92,8 +260,10 @@ class AiGuy:
 
             if (r < 0) or (r > 7) or (c < 0) or (c > 7):
                 break
-
-            sequence.append(self.state[r, c])
+            if len(fakestate) > 0:
+                sequence.append(fakestate[r, c])
+            else:
+                sequence.append(self.state[r, c])
 
         count = 0
         for i in range(len(sequence)):
@@ -114,7 +284,7 @@ class AiGuy:
 
         return False
 
-    def could_be(self, row, col, me):
+    def could_be(self, row, col, me, fakestate = []):
         """
         Checks if an unoccupied square can be played by the given player
         :param row: the row of the unoccupied square (int)
@@ -127,12 +297,12 @@ class AiGuy:
                 if (incx == 0) and (incy == 0):  # no need to check curr place
                     continue
 
-                if self.check_dir(row, col, incx, incy, me):
+                if self.check_dir(row, col, incx, incy, me, fakestate):
                     return True
 
         return False
 
-    def get_valid_moves(self, rnd, me, fakestate = False):
+    def get_valid_moves(self, rnd, me, fakestate = []):
         """
         Generates the set of valid moves for the player
         :param rnd: what number round the game is currently at.
@@ -140,7 +310,7 @@ class AiGuy:
         :return: A list of valid moves
         """
         valid_moves = []
-        if fakestate:
+        if len(fakestate) > 0:
             if rnd < 4:
                 if fakestate[3][3] == 0:
                     valid_moves.append([3, 3])
@@ -154,7 +324,7 @@ class AiGuy:
                 for i in range(8):
                     for j in range(8):
                         if fakestate[i][j] == 0:
-                            if self.could_be(i, j, me):
+                            if self.could_be(i, j, me, fakestate):
                                 valid_moves.append([i, j])
         else:
             if rnd < 4:
@@ -235,6 +405,10 @@ class AiGuy:
         """
         sock = self.init_client(me, host)  # Establish connection
         self.me = me
+        if me == 1:
+            self.not_me = 2
+        else:
+            self.not_me = 1
 
         while True:
             status = self.read_message(sock)  # get update from server
@@ -244,8 +418,7 @@ class AiGuy:
                 self.print_game_state()
 
                 valid_moves = self.get_valid_moves(status[1], me)  # status[1] has round
-                my_move = self.move(valid_moves)  # TODO: Call your move function instead. NOTE: This returns an *index*
-                self.score_board(self.state)
+                my_move = self.min_max(valid_moves)  # TODO: Call your move function instead. NOTE: This returns an *index*
 
                 print("Valid moves: {}".format(valid_moves))
                 print("Selected move: {}".format(valid_moves[my_move]))
