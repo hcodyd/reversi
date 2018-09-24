@@ -33,7 +33,7 @@ class AiGuy:
         :return: the move that should be taken
         """
         best_move = []
-        depth_to_go = 4  # TODO: adjust
+        depth_to_go = 4  # adjust
         alpha = -math.inf  # starting values
         beta = math.inf
         for i in range(len(valid_moves)):
@@ -43,10 +43,8 @@ class AiGuy:
     def maximize_ab(self, valid_move, depth_to_go, fake_state, rnd, alpha, beta):
         if depth_to_go == 0:  # reached maximum depth
             return self.score_board(fake_state, self.me)  # TODO: Use heuristic here.
-        # fake_state[valid_move[0]][valid_move[1]] = self.me
-        new_fake_state = self.flipmoves(fake_state, valid_move, self.me, self.not_me)
-        # check for flips from that move and get the new state  new_fake_state
-        valid_moves_min = self.get_valid_moves(rnd + 1, self.not_me, new_fake_state)  # get valid moves for new state
+        new_fake_state = self.flip_moves(fake_state, valid_move, self.me, self.not_me)
+        valid_moves_min = self.get_valid_moves(rnd + 1, self.not_me, new_fake_state)  # get valid moves for hypo state
 
         move_returned_values = []
         for i in range(len(valid_moves_min)):
@@ -61,11 +59,9 @@ class AiGuy:
 
     def minimize_ab(self, valid_move, depth_to_go, fake_state, rnd, alpha, beta):
         if depth_to_go == 0:
-            return self.score_board(fake_state, self.not_me)
-        # fake_state[valid_move[0]][valid_move[1]] = self.me
-        new_fake_state = self.flipmoves(fake_state, valid_move, self.not_me, self.me)
-        # check for flips from that move and get the new state  new_fake_state
-        valid_moves_max = self.get_valid_moves(rnd + 1, self.me, new_fake_state)
+            return self.score_board(fake_state, self.not_me)  # TODO: Use heuristic here.
+        new_fake_state = self.flip_moves(fake_state, valid_move, self.not_me, self.me)
+        valid_moves_max = self.get_valid_moves(rnd + 1, self.me, new_fake_state)  # get valid moves for hypo state
 
         move_returned_values = []
         for i in range(len(valid_moves_max)):
@@ -88,10 +84,8 @@ class AiGuy:
 
     def maximize(self, valid_move, depth_to_go, fake_state, rnd):
         if depth_to_go == 0:
-            return self.score_board(fake_state, self.me)
-        # fake_state[valid_move[0]][valid_move[1]] = self.me
-        new_fake_state = self.flipmoves(fake_state, valid_move, self.me, self.not_me)
-        # check for flips from that move and get the new state  new_fake_state
+            return self.score_board(fake_state, self.me)  # TODO: Use heuristic here.
+        new_fake_state = self.flip_moves(fake_state, valid_move, self.me, self.not_me)  # get valid moves for hypo state
         valid_moves_min = self.get_valid_moves(rnd + 1, self.not_me, new_fake_state)
 
         move_returned_values = []
@@ -104,11 +98,9 @@ class AiGuy:
 
     def minimize(self, valid_move, depth_to_go, fake_state, rnd):
         if depth_to_go == 0:
-            return self.score_board(fake_state, self.not_me)
-        # fake_state[valid_move[0]][valid_move[1]] = self.me
-        new_fake_state = self.flipmoves(fake_state, valid_move, self.not_me, self.me)
-        # check for flips from that move and get the new state  new_fake_state
-        valid_moves_max = self.get_valid_moves(rnd + 1, self.me, new_fake_state)
+            return self.score_board(fake_state, self.not_me)  # TODO: Use heuristic here.
+        new_fake_state = self.flip_moves(fake_state, valid_move, self.not_me, self.me)
+        valid_moves_max = self.get_valid_moves(rnd + 1, self.me, new_fake_state)  # get valid moves for hypo state
 
         move_returned_values = []
         for i in range(len(valid_moves_max)):
@@ -119,10 +111,11 @@ class AiGuy:
         return np.amin(move_returned_values)
 
     @staticmethod
-    def flipmoves(board, move, me, not_me):
+    def flip_moves(board, move, me, not_me):
         fake_board = deepcopy(board)
         fake_board[move[0]][move[1]] = me
-        # look up the coll
+
+        # look up the col
         vals_to_potentially_flip = []
         for i in range(move[0], 0, -1):
             if fake_board[i][move[1]] == not_me:
@@ -138,7 +131,7 @@ class AiGuy:
             if fake_board[i][move[1]] == 0:
                 break
 
-        # look down the coll
+        # look down the col
         for i in range(move[0], len(fake_board[0])):
             if fake_board[i][move[1]] == not_me:
                 vals_to_potentially_flip.append([i, move[1]])
@@ -182,6 +175,7 @@ class AiGuy:
                 break
             if fake_board[move[0]][i] == 0:
                 break
+
         # look diagonal up
         upval = move[0]
         for i in range(move[1], len(fake_board[0])):
@@ -200,6 +194,7 @@ class AiGuy:
             if fake_board[upval][i] == 0:
                 break
             upval -= 1
+
         # look diagonal down
         upval = move[0]
         for i in range(move[1], len(fake_board[0])):
@@ -477,7 +472,7 @@ class AiGuy:
                 self.print_game_state()
 
                 valid_moves = self.get_valid_moves(status[1], me)  # status[1] has round
-                my_move = self.alpha_beta(valid_moves)  # TODO: Call your move function instead.
+                my_move = self.alpha_beta(valid_moves)
 
                 print("Valid moves: {}".format(valid_moves))
                 print("Selected move: {}".format(valid_moves[my_move]))
