@@ -33,7 +33,7 @@ class AiGuy:
         :return: the move that should be taken
         """
         best_move = []
-        depth_to_go = 4  # adjust
+        depth_to_go = 3  # adjust
         alpha = -math.inf  # starting values
         beta = math.inf
         for i in range(len(valid_moves)):
@@ -42,7 +42,7 @@ class AiGuy:
 
     def maximize_ab(self, valid_move, depth_to_go, fake_state, rnd, alpha, beta):
         if depth_to_go == 0:  # reached maximum depth
-            return self.score_board(fake_state, self.me)  # TODO: Use heuristic here.
+            return self.use_heuristic(fake_state, rnd, self.me)  # when using max, looking from "my" perspective
         new_fake_state = self.flip_moves(fake_state, valid_move, self.me, self.not_me)
         valid_moves_min = self.get_valid_moves(rnd + 1, self.not_me, new_fake_state)  # get valid moves for hypo state
 
@@ -59,7 +59,7 @@ class AiGuy:
 
     def minimize_ab(self, valid_move, depth_to_go, fake_state, rnd, alpha, beta):
         if depth_to_go == 0:
-            return self.score_board(fake_state, self.not_me)  # TODO: Use heuristic here.
+            return self.use_heuristic(fake_state, rnd, self.not_me)
         new_fake_state = self.flip_moves(fake_state, valid_move, self.not_me, self.me)
         valid_moves_max = self.get_valid_moves(rnd + 1, self.me, new_fake_state)  # get valid moves for hypo state
 
@@ -84,7 +84,7 @@ class AiGuy:
 
     def maximize(self, valid_move, depth_to_go, fake_state, rnd):
         if depth_to_go == 0:
-            return self.score_board(fake_state, self.me)  # TODO: Use heuristic here.
+            return self.use_heuristic(fake_state, rnd, self.me)
         new_fake_state = self.flip_moves(fake_state, valid_move, self.me, self.not_me)  # get valid moves for hypo state
         valid_moves_min = self.get_valid_moves(rnd + 1, self.not_me, new_fake_state)
 
@@ -98,7 +98,7 @@ class AiGuy:
 
     def minimize(self, valid_move, depth_to_go, fake_state, rnd):
         if depth_to_go == 0:
-            return self.score_board(fake_state, self.not_me)  # TODO: Use heuristic here.
+            return self.use_heuristic(fake_state, rnd, self.not_me)
         new_fake_state = self.flip_moves(fake_state, valid_move, self.not_me, self.me)
         valid_moves_max = self.get_valid_moves(rnd + 1, self.me, new_fake_state)  # get valid moves for hypo state
 
@@ -254,6 +254,21 @@ class AiGuy:
 
         return fake_board
 
+    # ------------------------------------------------------------Heuristics-------------------------------------------------------------
+
+    def use_heuristic(self, board, rnd, me):
+        """
+        Returns an expected utility of a given board from the perspective of player "me".
+        :param board: the hypothetical board state
+        :param rnd: the hypothetical round
+        :param me: 1 or 2 depending on player perspective
+        :return: a utility (int)
+        """
+        if rnd < 44:
+            return self.mobility(board, rnd, me)
+        else:
+            return self.score_board(board, me)
+
     @staticmethod
     def score_board(board, me):
         board = np.matrix(board)
@@ -263,7 +278,18 @@ class AiGuy:
             return np.abs(player_one_score)
         else:
             return np.abs(player_two_score)
-        # print("player2: ", player_one_score, "player 1:", player_two_score)
+
+    def mobility(self, board, rnd, me):
+        """
+        Returns the number of available moves to the given player "me" in the hypothetical board.
+        :param board: the hypothetical board
+        :param rnd: the hypothetical round it is
+        :param me: the player to test for
+        :return: the number of available moves (int)
+        """
+        return len(self.get_valid_moves(rnd, me, board))
+
+    # -----------------------------------------------------------------------------------------------------------------------------------
 
     def move(self, valid_moves):
         """
@@ -358,7 +384,7 @@ class AiGuy:
         """
         Generates the set of valid moves for the player
         :param rnd: what number round the game is currently at.
-        :param me: ?
+        :param me: the player to check the moves for (1 or 2)
         :param fake_state: if changing a hypothetical state
         :return: A list of valid moves
         """
@@ -446,14 +472,14 @@ class AiGuy:
             for j in range(8):
                 self.state[i, j] = int(message[count])
                 count += 1
-        self.rnd = rnd
+        self.rnd = rnd  # update the global round variable
         return turn, rnd
 
     def play_game(self, me, host):
         """
         Establishes a connection with the server.
         Then plays whenever it is this player's turn.
-        :param me: ?
+        :param me: the player number of the AI
         :param host: ?
         :return: ?
         """
