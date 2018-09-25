@@ -36,7 +36,7 @@ class AiGuy:
         :return: the move that should be taken
         """
         best_move = []
-        depth_to_go = 1  # adjust
+        depth_to_go = 3  # adjust
         alpha = -math.inf  # starting values
         beta = math.inf
         for i in range(len(valid_moves)):
@@ -47,7 +47,7 @@ class AiGuy:
         if depth_to_go == 0:  # reached maximum depth
             return self.use_heuristic(fake_state, rnd, self.me)  # when using max, looking from "my" perspective
         new_fake_state = self.flip(valid_move[0], valid_move[1], self.me, fake_state)
-        valid_moves_min = self.get_valid_moves(rnd + 1, self.not_me, new_fake_state)  # get valid moves for hypo state
+        valid_moves_min = self.get_hypo_valid_moves(rnd + 1, self.not_me, new_fake_state)
 
         move_returned_values = []
         for i in range(len(valid_moves_min)):
@@ -65,7 +65,7 @@ class AiGuy:
         if depth_to_go == 0:
             return self.use_heuristic(fake_state, rnd, self.not_me)
         new_fake_state = self.flip(valid_move[0], valid_move[1], self.not_me, fake_state)
-        valid_moves_max = self.get_valid_moves(rnd + 1, self.me, new_fake_state)  # get valid moves for hypo state
+        valid_moves_max = self.get_hypo_valid_moves(rnd + 1, self.me, new_fake_state)
 
         move_returned_values = []
         for i in range(len(valid_moves_max)):
@@ -90,7 +90,7 @@ class AiGuy:
         if depth_to_go == 0:
             return self.use_heuristic(fake_state, rnd, self.me)
         new_fake_state = self.flip(valid_move[0], valid_move[1], self.me, fake_state)
-        valid_moves_min = self.get_valid_moves(rnd + 1, self.not_me, new_fake_state)
+        valid_moves_min = self.get_hypo_valid_moves(rnd + 1, self.not_me, new_fake_state)
 
         move_returned_values = []
         for i in range(len(valid_moves_min)):
@@ -104,7 +104,7 @@ class AiGuy:
         if depth_to_go == 0:
             return self.use_heuristic(fake_state, rnd, self.not_me)
         new_fake_state = self.flip(valid_move[0], valid_move[1], self.not_me, fake_state)
-        valid_moves_max = self.get_valid_moves(rnd + 1, self.me, new_fake_state)  # get valid moves for hypo state
+        valid_moves_max = self.get_hypo_valid_moves(rnd + 1, self.me, new_fake_state)
 
         move_returned_values = []
         for i in range(len(valid_moves_max)):
@@ -147,7 +147,7 @@ class AiGuy:
         :param me: the player to test for
         :return: the number of available moves (int)
         """
-        return len(self.get_valid_moves(rnd, me, board))
+        return len(self.get_hypo_valid_moves(rnd, me, board))
 
     # -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -207,7 +207,7 @@ class AiGuy:
         :return: True or False
         """
         # print("BEFORE")
-        print(fake_state)
+        # print(fake_state)
         for dir_x in range(-1, 2):  # check in all directions
             for dir_y in range(-1, 2):
                 if (dir_x == 0) and (dir_y == 0):  # no need to check curr place
@@ -217,7 +217,54 @@ class AiGuy:
         # print(fake_state)
         return fake_state
 
-    def check_dir(self, row, col, dir_x, dir_y, me, fake_state=None):
+    def get_hypo_valid_moves(self, rnd, me, board):
+        """
+        Returns the valid moves for the hypothetical board state.
+        :param rnd: the round (hypothetical)
+        :param me: the player taking next move
+        :param board: the hypothetical board
+        :return: the valid moves
+        """
+        valid_moves = []
+        if board is not None:
+            if rnd < 4:
+                if board[3][3] == 0:
+                    valid_moves.append([3, 3])
+                if board[3][4] == 0:
+                    valid_moves.append([3, 4])
+                if board[4][3] == 0:
+                    valid_moves.append([4, 3])
+                if board[4][4] == 0:
+                    valid_moves.append([4, 4])
+            else:
+                for i in range(8):
+                    for j in range(8):
+                        if board[i][j] == 0:
+                            if self.hypo_could_be(i, j, me, board):
+                                valid_moves.append([i, j])
+        return valid_moves
+
+    def hypo_could_be(self, row, col, me, board):
+        """
+        Checks if an unoccupied square can be played by the given player
+        :param row: the row of the unoccupied square (int)
+        :param col: the col of the unoccupied square (int)
+        :param me: the player (1 or 2)
+        :param board: the hypothetical board
+        :return: True or False
+        """
+        for dir_x in range(-1, 2):
+            for dir_y in range(-1, 2):
+                if (dir_x == 0) and (dir_y == 0):  # no need to check curr place
+                    continue
+
+                if self.hypo_check_dir(row, col, dir_x, dir_y, me, board):
+                    return True
+
+        return False
+
+    @staticmethod
+    def hypo_check_dir(row, col, dir_x, dir_y, me, board):
         """
         Figures out if the move at row, col is valid for the given player in the given direction.
         :param row: the row of the unoccupied square (int)
@@ -225,7 +272,7 @@ class AiGuy:
         :param dir_x: the x direction
         :param dir_y: the y direction
         :param me: the given player
-        :param fake_state: if changing a hypothetical state
+        :param board: the hypothetical board
         :return: True or False
         """
         sequence = []
@@ -234,10 +281,7 @@ class AiGuy:
             c = col + dir_x * i
             if (r < 0) or (r > 7) or (c < 0) or (c > 7):
                 break
-            if fake_state is not None:
-                sequence.append(fake_state[r, c])
-            else:
-                sequence.append(self.state[r, c])
+            sequence.append(board[r, c])
 
         count = 0
         for i in range(len(sequence)):
@@ -258,13 +302,51 @@ class AiGuy:
 
         return False
 
-    def could_be(self, row, col, me, fake_state=None):
+    # ------------------------------------- Code that affects the state -----------------------------------------------
+
+    def check_dir(self, row, col, dir_x, dir_y, me):
+        """
+        Figures out if the move at row, col is valid for the given player in the given direction.
+        :param row: the row of the unoccupied square (int)
+        :param col: the col of the unoccupied square (int)
+        :param dir_x: the x direction
+        :param dir_y: the y direction
+        :param me: the given player
+        :return: True or False
+        """
+        sequence = []
+        for i in range(1, 8):
+            r = row + dir_y * i
+            c = col + dir_x * i
+            if (r < 0) or (r > 7) or (c < 0) or (c > 7):
+                break
+            sequence.append(self.state[r, c])
+
+        count = 0
+        for i in range(len(sequence)):
+            if me == 1:
+                if sequence[i] == 2:
+                    count = count + 1
+                else:
+                    if (sequence[i] == 1) and (count > 0):
+                        return True
+                    break
+            else:
+                if sequence[i] == 1:
+                    count = count + 1
+                else:
+                    if (sequence[i] == 2) and (count > 0):
+                        return True
+                    break
+
+        return False
+
+    def could_be(self, row, col, me):
         """
         Checks if an unoccupied square can be played by the given player
         :param row: the row of the unoccupied square (int)
         :param col: the col of the unoccupied square (int)
         :param me: the player
-        :param fake_state: if changing a hypothetical state
         :return: True or False
         """
         for dir_x in range(-1, 2):
@@ -272,52 +354,34 @@ class AiGuy:
                 if (dir_x == 0) and (dir_y == 0):  # no need to check curr place
                     continue
 
-                if self.check_dir(row, col, dir_x, dir_y, me, fake_state):
+                if self.check_dir(row, col, dir_x, dir_y, me):
                     return True
 
         return False
 
-    def get_valid_moves(self, rnd, me, fake_state=None):
+    def get_valid_moves(self, rnd, me):
         """
         Generates the set of valid moves for the player
         :param rnd: what number round the game is currently at.
         :param me: the player to check the moves for (1 or 2)
-        :param fake_state: if changing a hypothetical state
         :return: A list of valid moves
         """
         valid_moves = []
-        if fake_state is not None:
-            if rnd < 4:
-                if fake_state[3][3] == 0:
-                    valid_moves.append([3, 3])
-                if fake_state[3][4] == 0:
-                    valid_moves.append([3, 4])
-                if fake_state[4][3] == 0:
-                    valid_moves.append([4, 3])
-                if fake_state[4][4] == 0:
-                    valid_moves.append([4, 4])
-            else:
-                for i in range(8):
-                    for j in range(8):
-                        if fake_state[i][j] == 0:
-                            if self.could_be(i, j, me, fake_state):
-                                valid_moves.append([i, j])
+        if rnd < 4:
+            if self.state[3][3] == 0:
+                valid_moves.append([3, 3])
+            if self.state[3][4] == 0:
+                valid_moves.append([3, 4])
+            if self.state[4][3] == 0:
+                valid_moves.append([4, 3])
+            if self.state[4][4] == 0:
+                valid_moves.append([4, 4])
         else:
-            if rnd < 4:
-                if self.state[3][3] == 0:
-                    valid_moves.append([3, 3])
-                if self.state[3][4] == 0:
-                    valid_moves.append([3, 4])
-                if self.state[4][3] == 0:
-                    valid_moves.append([4, 3])
-                if self.state[4][4] == 0:
-                    valid_moves.append([4, 4])
-            else:
-                for i in range(8):
-                    for j in range(8):
-                        if self.state[i][j] == 0:
-                            if self.could_be(i, j, me):
-                                valid_moves.append([i, j])
+            for i in range(8):
+                for j in range(8):
+                    if self.state[i][j] == 0:
+                        if self.could_be(i, j, me):
+                            valid_moves.append([i, j])
 
         return valid_moves
 
