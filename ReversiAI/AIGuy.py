@@ -1,18 +1,20 @@
 import sys
 import socket
 import time
-from random import randint
 import numpy as np
 from copy import deepcopy
 import math
 
 
 class AiGuy:
+    rnd: int
     GAME_OVER = -999  # the turn is set to -999 if the game is over
     UPPER_LEFT = [0, 0]
     UPPER_RIGHT = [0, 7]
     LOWER_LEFT = [7, 0]
     LOWER_RIGHT = [7, 7]
+    ROWS = 8
+    COLS = 8
     me = 0  # this will be set by the server to either 1 or 2
     not_me = 0  # used for keeping track when flipping
 
@@ -20,10 +22,11 @@ class AiGuy:
     t2 = 0.0  # the amount of time remaining to player 2
 
     state = np.zeros((8, 8))  # this will keep the real state of the game
+
     # fake_state = np.zeros((8, 8))  # this will be modified to hold a fake state
 
     def __init__(self):
-        print('Argument List:', str(sys.argv))
+        # print('Argument List:', str(sys.argv))
         self.play_game(int(sys.argv[2]), sys.argv[1])
 
     def alpha_beta(self, valid_moves):
@@ -33,7 +36,7 @@ class AiGuy:
         :return: the move that should be taken
         """
         best_move = []
-        depth_to_go = 3  # adjust
+        depth_to_go = 1  # adjust
         alpha = -math.inf  # starting values
         beta = math.inf
         for i in range(len(valid_moves)):
@@ -43,12 +46,13 @@ class AiGuy:
     def maximize_ab(self, valid_move, depth_to_go, fake_state, rnd, alpha, beta):
         if depth_to_go == 0:  # reached maximum depth
             return self.use_heuristic(fake_state, rnd, self.me)  # when using max, looking from "my" perspective
-        new_fake_state = self.flip_moves(fake_state, valid_move, self.me, self.not_me)
+        new_fake_state = self.flip(valid_move[0], valid_move[1], self.me, fake_state)
         valid_moves_min = self.get_valid_moves(rnd + 1, self.not_me, new_fake_state)  # get valid moves for hypo state
 
         move_returned_values = []
         for i in range(len(valid_moves_min)):
-            value = self.minimize_ab(valid_moves_min[i], depth_to_go-1, deepcopy(new_fake_state), rnd+1, alpha, beta)
+            value = self.minimize_ab(valid_moves_min[i], depth_to_go - 1, deepcopy(new_fake_state), rnd + 1, alpha,
+                                     beta)
             if value >= beta:
                 return value
             alpha = max(value, alpha)
@@ -60,13 +64,13 @@ class AiGuy:
     def minimize_ab(self, valid_move, depth_to_go, fake_state, rnd, alpha, beta):
         if depth_to_go == 0:
             return self.use_heuristic(fake_state, rnd, self.not_me)
-        new_fake_state = self.flip_moves(fake_state, valid_move, self.not_me, self.me)
+        new_fake_state = self.flip(valid_move[0], valid_move[1], self.not_me, fake_state)
         valid_moves_max = self.get_valid_moves(rnd + 1, self.me, new_fake_state)  # get valid moves for hypo state
 
         move_returned_values = []
         for i in range(len(valid_moves_max)):
             value = (
-                self.maximize_ab(valid_moves_max[i], depth_to_go-1, deepcopy(new_fake_state), rnd+1, alpha, beta))
+                self.maximize_ab(valid_moves_max[i], depth_to_go - 1, deepcopy(new_fake_state), rnd + 1, alpha, beta))
             if value <= alpha:
                 return value
             beta = min(beta, value)
@@ -85,13 +89,13 @@ class AiGuy:
     def maximize(self, valid_move, depth_to_go, fake_state, rnd):
         if depth_to_go == 0:
             return self.use_heuristic(fake_state, rnd, self.me)
-        new_fake_state = self.flip_moves(fake_state, valid_move, self.me, self.not_me)  # get valid moves for hypo state
+        new_fake_state = self.flip(valid_move[0], valid_move[1], self.me, fake_state)
         valid_moves_min = self.get_valid_moves(rnd + 1, self.not_me, new_fake_state)
 
         move_returned_values = []
         for i in range(len(valid_moves_min)):
             move_returned_values.append(
-                self.minimize(valid_moves_min[i], depth_to_go-1, deepcopy(new_fake_state), rnd+1))
+                self.minimize(valid_moves_min[i], depth_to_go - 1, deepcopy(new_fake_state), rnd + 1))
         if len(move_returned_values) == 0:
             move_returned_values.append(0)
         return np.amax(move_returned_values)
@@ -99,7 +103,7 @@ class AiGuy:
     def minimize(self, valid_move, depth_to_go, fake_state, rnd):
         if depth_to_go == 0:
             return self.use_heuristic(fake_state, rnd, self.not_me)
-        new_fake_state = self.flip_moves(fake_state, valid_move, self.not_me, self.me)
+        new_fake_state = self.flip(valid_move[0], valid_move[1], self.not_me, fake_state)
         valid_moves_max = self.get_valid_moves(rnd + 1, self.me, new_fake_state)  # get valid moves for hypo state
 
         move_returned_values = []
@@ -109,150 +113,6 @@ class AiGuy:
         if len(move_returned_values) == 0:
             move_returned_values.append(0)
         return np.amin(move_returned_values)
-
-    @staticmethod
-    def flip_moves(board, move, me, not_me):
-        fake_board = deepcopy(board)
-        fake_board[move[0]][move[1]] = me
-
-        # look up the col
-        vals_to_potentially_flip = []
-        for i in range(move[0], 0, -1):
-            if fake_board[i][move[1]] == not_me:
-                vals_to_potentially_flip.append([i, move[1]])
-            if fake_board[i][move[1]] == 0 and len(vals_to_potentially_flip) > 0:
-                vals_to_potentially_flip.clear()
-                break
-            if fake_board[i][move[1]] == me and len(vals_to_potentially_flip) > 0:
-                for j in vals_to_potentially_flip:
-                    fake_board[j[0]][j[1]] = me
-                vals_to_potentially_flip.clear()
-                break
-            if fake_board[i][move[1]] == 0:
-                break
-
-        # look down the col
-        for i in range(move[0], len(fake_board[0])):
-            if fake_board[i][move[1]] == not_me:
-                vals_to_potentially_flip.append([i, move[1]])
-            if fake_board[i][move[1]] == 0 and len(vals_to_potentially_flip) > 0:
-                vals_to_potentially_flip.clear()
-                break
-            if fake_board[i][move[1]] == me and len(vals_to_potentially_flip) > 0:
-                for j in vals_to_potentially_flip:
-                    fake_board[j[0]][j[1]] = me
-                vals_to_potentially_flip.clear()
-                break
-            if fake_board[i][move[1]] == 0:
-                break
-
-        # look left down the row
-        for i in range(move[1], 0, -1):
-            if fake_board[move[0]][i] == not_me:
-                vals_to_potentially_flip.append([move[0], i])
-            if fake_board[move[0]][i] == 0 and len(vals_to_potentially_flip) > 0:
-                vals_to_potentially_flip.clear()
-                break
-            if fake_board[move[0]][i] == me and len(vals_to_potentially_flip) > 0:
-                for j in vals_to_potentially_flip:
-                    fake_board[j[0]][j[1]] = me
-                vals_to_potentially_flip.clear()
-                break
-            if fake_board[move[0]][i] == 0:
-                break
-
-        # look right down the row
-        for i in range(move[1], len(fake_board[0])):
-            if fake_board[move[0]][i] == not_me:
-                vals_to_potentially_flip.append([move[0], i])
-            if fake_board[move[0]][i] == 0 and len(vals_to_potentially_flip) > 0:
-                vals_to_potentially_flip.clear()
-                break
-            if fake_board[move[0]][i] == me and len(vals_to_potentially_flip) > 0:
-                for j in vals_to_potentially_flip:
-                    fake_board[j[0]][j[1]] = me
-                vals_to_potentially_flip.clear()
-                break
-            if fake_board[move[0]][i] == 0:
-                break
-
-        # look diagonal up
-        upval = move[0]
-        for i in range(move[1], len(fake_board[0])):
-            if upval == -1:
-                break
-            if fake_board[upval][i] == not_me:
-                vals_to_potentially_flip.append([upval, i])
-            if fake_board[upval][i] == 0 and len(vals_to_potentially_flip) > 0:
-                vals_to_potentially_flip.clear()
-                break
-            if fake_board[upval][i] == me and len(vals_to_potentially_flip) > 0:
-                for j in vals_to_potentially_flip:
-                    fake_board[j[0]][j[1]] = me
-                vals_to_potentially_flip.clear()
-                break
-            if fake_board[upval][i] == 0:
-                break
-            upval -= 1
-
-        # look diagonal down
-        upval = move[0]
-        for i in range(move[1], len(fake_board[0])):
-            if upval > 7:
-                break
-            if fake_board[upval][i] == not_me:
-                vals_to_potentially_flip.append([upval, i])
-            if fake_board[upval][i] == 0 and len(vals_to_potentially_flip) > 0:
-                vals_to_potentially_flip.clear()
-                break
-            if fake_board[upval][i] == me and len(vals_to_potentially_flip) > 0:
-                for j in vals_to_potentially_flip:
-                    fake_board[j[0]][j[1]] = me
-                vals_to_potentially_flip.clear()
-                break
-            if fake_board[upval][i] == 0:
-                break
-            upval += 1
-
-        # look diagonal up and back
-        upval = move[0]
-        for i in range(move[1], 0, -1):
-            if upval == -1:
-                break
-            if fake_board[upval][i] == not_me:
-                vals_to_potentially_flip.append([upval, i])
-            if fake_board[upval][i] == 0 and len(vals_to_potentially_flip) > 0:
-                vals_to_potentially_flip.clear()
-                break
-            if fake_board[upval][i] == me and len(vals_to_potentially_flip) > 0:
-                for j in vals_to_potentially_flip:
-                    fake_board[j[0]][j[1]] = me
-                vals_to_potentially_flip.clear()
-                break
-            if fake_board[upval][i] == 0:
-                break
-            upval -= 1
-
-        # look diagonal down and back
-        upval = move[0]
-        for i in range(move[1], 0, -1):
-            if upval > 7:
-                break
-            if fake_board[upval][i] == not_me:
-                vals_to_potentially_flip.append([upval, i])
-            if fake_board[upval][i] == 0 and len(vals_to_potentially_flip) > 0:
-                vals_to_potentially_flip.clear()
-                break
-            if fake_board[upval][i] == me and len(vals_to_potentially_flip) > 0:
-                for j in vals_to_potentially_flip:
-                    fake_board[j[0]][j[1]] = me
-                vals_to_potentially_flip.clear()
-                break
-            if fake_board[upval][i] == 0:
-                break
-            upval += 1
-
-        return fake_board
 
     # ------------------------------------------------------------Heuristics-------------------------------------------------------------
 
@@ -291,50 +151,87 @@ class AiGuy:
 
     # -----------------------------------------------------------------------------------------------------------------------------------
 
-    def move(self, valid_moves):
+    @staticmethod
+    def flip_in_dir(row, col, dir_x, dir_y, me, fake_state):
         """
-        Take random corners and sides first.
-        :param valid_moves: the valid moves in the current game
-        :return: the INDEX within valid_moves
-        """
-        corner_move = []
-        for i in range(0, len(valid_moves)):
-            if (valid_moves[i] == self.UPPER_LEFT) or (valid_moves[i] == self.UPPER_RIGHT) or (
-                    valid_moves[i] == self.LOWER_LEFT) or (
-                    valid_moves[i] == self.LOWER_RIGHT):
-                corner_move.append(i)
-        if len(corner_move) > 0:
-            rand = randint(0, len(corner_move) - 1)
-            return corner_move[rand]
-
-        side_move = []
-        for i in range(0, len(valid_moves)):
-            if (valid_moves[i][0] == 0) or (valid_moves[i][0] == 7) or (valid_moves[i][1] == 0) or (
-                    valid_moves[i][1] == 7):
-                side_move.append(i)
-        if len(side_move) > 0:
-            rand = randint(0, len(side_move) - 1)
-            return side_move[rand]
-
-        my_move = randint(0, len(valid_moves) - 1)
-        return my_move
-
-    def check_dir(self, row, col, incx, incy, me, fake_state=None):
-        """
-        Figures out if the move at row,col is valid for the given player.
+        Returns the board if the move at given row and col is taken
         :param row: the row of the unoccupied square (int)
         :param col: the col of the unoccupied square (int)
-        :param incx: ?
-        :param incy: ?
+        :param dir_x: row direction to look
+        :param dir_y: col direction to look
         :param me: the given player
         :param fake_state: if changing a hypothetical state
         :return: True or False
         """
         sequence = []
         for i in range(1, 8):
-            r = row + incy * i
-            c = col + incx * i
+            r = row + dir_y * i
+            c = col + dir_x * i
 
+            if (r < 0) or (r > 7) or (c < 0) or (c > 7):
+                break
+            sequence.append(fake_state[r, c])
+
+        stones_to_flip = 0
+        can_flip = False
+        for i in range(len(sequence)):
+            if me == 1:
+                if sequence[i] == 1:
+                    can_flip = True
+                    break
+                if sequence[i] == 2:
+                    stones_to_flip += 1
+                if sequence[i] == 0:
+                    stones_to_flip = 0
+                    break
+            else:  # p2
+                if sequence[i] == 2:
+                    can_flip = True
+                    break
+                if sequence[i] == 1:
+                    stones_to_flip += 1
+                if sequence[i] == 0:
+                    stones_to_flip = 0
+                    break
+        if can_flip:
+            for i in range(1, stones_to_flip + 1):
+                fake_state[row + dir_y * i, col + dir_x * i] = me
+
+    def flip(self, row, col, me, fake_state):
+        """
+        Checks if an unoccupied square can be played by the given player
+        :param row: the row of the unoccupied square (int)
+        :param col: the col of the unoccupied square (int)
+        :param me: the player
+        :param fake_state: the state to change
+        :return: True or False
+        """
+        # print("BEFORE")
+        print(fake_state)
+        for dir_x in range(-1, 2):  # check in all directions
+            for dir_y in range(-1, 2):
+                if (dir_x == 0) and (dir_y == 0):  # no need to check curr place
+                    fake_state[row, col] = me
+                self.flip_in_dir(row, col, dir_x, dir_y, me, fake_state)
+        # print("AFTER move {},{} for {}".format(row, col, me))
+        # print(fake_state)
+        return fake_state
+
+    def check_dir(self, row, col, dir_x, dir_y, me, fake_state=None):
+        """
+        Figures out if the move at row, col is valid for the given player in the given direction.
+        :param row: the row of the unoccupied square (int)
+        :param col: the col of the unoccupied square (int)
+        :param dir_x: the x direction
+        :param dir_y: the y direction
+        :param me: the given player
+        :param fake_state: if changing a hypothetical state
+        :return: True or False
+        """
+        sequence = []
+        for i in range(1, 8):
+            r = row + dir_y * i
+            c = col + dir_x * i
             if (r < 0) or (r > 7) or (c < 0) or (c > 7):
                 break
             if fake_state is not None:
@@ -370,12 +267,12 @@ class AiGuy:
         :param fake_state: if changing a hypothetical state
         :return: True or False
         """
-        for incx in range(-1, 2):
-            for incy in range(-1, 2):
-                if (incx == 0) and (incy == 0):  # no need to check curr place
+        for dir_x in range(-1, 2):
+            for dir_y in range(-1, 2):
+                if (dir_x == 0) and (dir_y == 0):  # no need to check curr place
                     continue
 
-                if self.check_dir(row, col, incx, incy, me, fake_state):
+                if self.check_dir(row, col, dir_x, dir_y, me, fake_state):
                     return True
 
         return False
@@ -423,14 +320,6 @@ class AiGuy:
                                 valid_moves.append([i, j])
 
         return valid_moves
-
-    def print_game_state(self):
-        """
-        Uses global variable state to print current game state.
-        :return: None
-        """
-        for i in range(8):  # prints the state of the game in readable rows
-            print(self.state[i])
 
     @staticmethod
     def init_client(me, host):
@@ -481,7 +370,7 @@ class AiGuy:
         Then plays whenever it is this player's turn.
         :param me: the player number of the AI
         :param host: ?
-        :return: ?
+        :return: None
         """
         sock = self.init_client(me, host)  # Establish connection
         self.me = me
@@ -493,22 +382,23 @@ class AiGuy:
         while True:
             status = self.read_message(sock)  # get update from server
             if status[0] == me:  # status[0] has turn
-                print("-----------------Round {}-----------------".format(status[1]))  # status[1] has round
-                print("My turn.")
-                self.print_game_state()
+                # print("-----------------Round {}-----------------".format(status[1]))  # status[1] has round
+                # print("My turn.")
+                # self.print_game_state()
 
                 valid_moves = self.get_valid_moves(status[1], me)  # status[1] has round
                 my_move = self.alpha_beta(valid_moves)
 
-                print("Valid moves: {}".format(valid_moves))
-                print("Selected move: {}".format(valid_moves[my_move]))
+                # print("Valid moves: {}".format(valid_moves))
+                # print("Selected move: {}".format(valid_moves[my_move]))
 
                 # Send selection
                 selection = str(valid_moves[my_move][0]) + "\n" + str(valid_moves[my_move][1]) + "\n"
                 sock.send(selection.encode("utf-8"))
-                print("------------------------------------------")
+                # print("------------------------------------------")
             else:
-                print("Other player's turn.")  # Always prints twice?
+                pass
+                # print("Cody player's turn.")  # Always prints twice?
 
 
 if __name__ == "__main__":
