@@ -23,8 +23,6 @@ class AiGuy:
 
     state = np.zeros((8, 8))  # this will keep the real state of the game
 
-    # fake_state = np.zeros((8, 8))  # this will be modified to hold a fake state
-
     def __init__(self):
         # print('Argument List:', str(sys.argv))
         self.play_game(int(sys.argv[2]), sys.argv[1])
@@ -36,83 +34,120 @@ class AiGuy:
         :return: the move that should be taken
         """
         best_move = []
-        depth_to_go = 3  # adjust
+        depth_to_go = 10  # adjust
         alpha = -math.inf  # starting values
         beta = math.inf
         for i in range(len(valid_moves)):
-            best_move.append(self.maximize_ab(valid_moves[i], depth_to_go, deepcopy(self.state), self.rnd, alpha, beta))
+            best_move.append(self.ab_max(valid_moves[i], depth_to_go, deepcopy(self.state), self.rnd, alpha, beta))
         return best_move.index(max(best_move))
 
-    def maximize_ab(self, valid_move, depth_to_go, fake_state, rnd, alpha, beta):
-        if depth_to_go == 0:  # reached maximum depth
-            return self.use_heuristic(fake_state, rnd, self.me)  # when using max, looking from "my" perspective
-        new_fake_state = self.flip(valid_move[0], valid_move[1], self.me, fake_state)
-        valid_moves_min = self.get_hypo_valid_moves(rnd + 1, self.not_me, new_fake_state)
+    # def maximize_ab(self, valid_move, depth_to_go, fake_state, rnd, alpha, beta):
+    #     if depth_to_go == 0:  # reached maximum depth
+    #         return self.use_heuristic(fake_state, rnd, self.me)  # when using max, looking from "my" perspective
+    #     new_fake_state = self.take_move(valid_move[0], valid_move[1], self.me, fake_state)
+    #     valid_moves_min = self.get_hypo_valid_moves(rnd + 1, self.not_me, new_fake_state)
+    #
+    #     move_returned_values = []
+    #     for i in range(len(valid_moves_min)):
+    #         value = self.minimize_ab(valid_moves_min[i], depth_to_go - 1, deepcopy(new_fake_state), rnd + 1, alpha,
+    #                                  beta)
+    #         if value >= beta:
+    #             return value
+    #         alpha = max(value, alpha)
+    #         move_returned_values.append(value)
+    #     if len(move_returned_values) == 0:
+    #         move_returned_values.append(0)
+    #     return np.amax(move_returned_values)
+    #
+    # def minimize_ab(self, valid_move, depth_to_go, fake_state, rnd, alpha, beta):
+    #     if depth_to_go == 0:
+    #         return self.use_heuristic(fake_state, rnd, self.not_me)
+    #     new_fake_state = self.take_move(valid_move[0], valid_move[1], self.not_me, fake_state)
+    #     valid_moves_max = self.get_hypo_valid_moves(rnd + 1, self.me, new_fake_state)
+    #
+    #     move_returned_values = []
+    #     for i in range(len(valid_moves_max)):
+    #         value = (
+    #             self.maximize_ab(valid_moves_max[i], depth_to_go - 1, deepcopy(new_fake_state), rnd + 1, alpha, beta))
+    #         if value <= alpha:
+    #             return value
+    #         beta = min(beta, value)
+    #         move_returned_values.append(value)
+    #     if len(move_returned_values) == 0:
+    #         move_returned_values.append(0)
+    #     return np.amin(move_returned_values)
+    #
+    # def min_max(self, valid_moves):
+    #     best_move = []
+    #     depth_to_go = 4
+    #     for i in range(len(valid_moves)):
+    #         best_move.append(self.maximize(valid_moves[i], depth_to_go, deepcopy(self.state), self.rnd))
+    #     return best_move.index(max(best_move))
+    #
+    # def maximize(self, valid_move, depth_to_go, fake_state, rnd):
+    #     if depth_to_go == 0:
+    #         return self.use_heuristic(fake_state, rnd, self.me)
+    #     new_fake_state = self.take_move(valid_move[0], valid_move[1], self.me, fake_state)
+    #     valid_moves_min = self.get_hypo_valid_moves(rnd + 1, self.not_me, new_fake_state)
+    #
+    #     move_returned_values = []
+    #     for i in range(len(valid_moves_min)):
+    #         move_returned_values.append(
+    #             self.minimize(valid_moves_min[i], depth_to_go - 1, deepcopy(new_fake_state), rnd + 1))
+    #     if len(move_returned_values) == 0:
+    #         move_returned_values.append(0)
+    #     return np.amax(move_returned_values)
+    #
+    # def minimize(self, valid_move, depth_to_go, fake_state, rnd):
+    #     if depth_to_go == 0:
+    #         return self.use_heuristic(fake_state, rnd, self.not_me)
+    #     new_fake_state = self.take_move(valid_move[0], valid_move[1], self.not_me, fake_state)
+    #     valid_moves_max = self.get_hypo_valid_moves(rnd + 1, self.me, new_fake_state)
+    #
+    #     move_returned_values = []
+    #     for i in range(len(valid_moves_max)):
+    #         move_returned_values.append(
+    #             self.maximize(valid_moves_max[i], (depth_to_go - 1), deepcopy(new_fake_state), rnd + 1))
+    #     if len(move_returned_values) == 0:
+    #         move_returned_values.append(0)
+    #     return np.amin(move_returned_values)
 
-        move_returned_values = []
-        for i in range(len(valid_moves_min)):
-            value = self.minimize_ab(valid_moves_min[i], depth_to_go - 1, deepcopy(new_fake_state), rnd + 1, alpha,
-                                     beta)
+    def ab_max(self, valid_move, depth_left, board, rnd, alpha, beta):
+        if depth_left == 0:  # if at leaf node, return expected utility
+            # print("Terminal node.")
+            return self.use_heuristic(board, rnd, self.me)
+
+        value = -math.inf
+
+        # get new board and new moves for next level down
+        new_board = self.take_move(valid_move[0], valid_move[1], self.me, board)
+        new_moves = self.get_hypo_valid_moves(rnd, self.not_me, new_board)
+
+        # look through all the moves and take the max of of the min
+        for move in new_moves:
+            value = max(value, self.ab_min(move, depth_left-1, new_board, rnd, alpha, beta))
             if value >= beta:
-                return value
-            alpha = max(value, alpha)
-            move_returned_values.append(value)
-        if len(move_returned_values) == 0:
-            move_returned_values.append(0)
-        return np.amax(move_returned_values)
+                # print("Beta cutoff")
+                return value  # this is a beta cut off
+            alpha = max(alpha, value)
+        return value
 
-    def minimize_ab(self, valid_move, depth_to_go, fake_state, rnd, alpha, beta):
-        if depth_to_go == 0:
-            return self.use_heuristic(fake_state, rnd, self.not_me)
-        new_fake_state = self.flip(valid_move[0], valid_move[1], self.not_me, fake_state)
-        valid_moves_max = self.get_hypo_valid_moves(rnd + 1, self.me, new_fake_state)
+    def ab_min(self, valid_move, depth_left, board, rnd, alpha, beta):
+        if depth_left == 0:  # if at leaf node, return expected utility
+            return self.use_heuristic(board, rnd, self.not_me)
 
-        move_returned_values = []
-        for i in range(len(valid_moves_max)):
-            value = (
-                self.maximize_ab(valid_moves_max[i], depth_to_go - 1, deepcopy(new_fake_state), rnd + 1, alpha, beta))
+        value = math.inf
+
+        new_board = self.take_move(valid_move[0], valid_move[1], self.me, board)
+        new_moves = self.get_hypo_valid_moves(rnd, self.not_me, new_board)
+
+        for move in new_moves:
+            value = min(value, self.ab_max(move, depth_left-1, new_board, rnd, alpha, beta))
             if value <= alpha:
-                return value
+                # print("Alpha cutoff")
+                return value  # this is an alpha cut off
             beta = min(beta, value)
-            move_returned_values.append(value)
-        if len(move_returned_values) == 0:
-            move_returned_values.append(0)
-        return np.amin(move_returned_values)
-
-    def min_max(self, valid_moves):
-        best_move = []
-        depth_to_go = 4
-        for i in range(len(valid_moves)):
-            best_move.append(self.maximize(valid_moves[i], depth_to_go, deepcopy(self.state), self.rnd))
-        return best_move.index(max(best_move))
-
-    def maximize(self, valid_move, depth_to_go, fake_state, rnd):
-        if depth_to_go == 0:
-            return self.use_heuristic(fake_state, rnd, self.me)
-        new_fake_state = self.flip(valid_move[0], valid_move[1], self.me, fake_state)
-        valid_moves_min = self.get_hypo_valid_moves(rnd + 1, self.not_me, new_fake_state)
-
-        move_returned_values = []
-        for i in range(len(valid_moves_min)):
-            move_returned_values.append(
-                self.minimize(valid_moves_min[i], depth_to_go - 1, deepcopy(new_fake_state), rnd + 1))
-        if len(move_returned_values) == 0:
-            move_returned_values.append(0)
-        return np.amax(move_returned_values)
-
-    def minimize(self, valid_move, depth_to_go, fake_state, rnd):
-        if depth_to_go == 0:
-            return self.use_heuristic(fake_state, rnd, self.not_me)
-        new_fake_state = self.flip(valid_move[0], valid_move[1], self.not_me, fake_state)
-        valid_moves_max = self.get_hypo_valid_moves(rnd + 1, self.me, new_fake_state)
-
-        move_returned_values = []
-        for i in range(len(valid_moves_max)):
-            move_returned_values.append(
-                self.maximize(valid_moves_max[i], (depth_to_go - 1), deepcopy(new_fake_state), rnd + 1))
-        if len(move_returned_values) == 0:
-            move_returned_values.append(0)
-        return np.amin(move_returned_values)
+        return value
 
     # ------------------------------------------------------------Heuristics-------------------------------------------------------------
 
@@ -125,9 +160,13 @@ class AiGuy:
         :return: a utility (int)
         """
         if rnd < 44:
-            return self.mobility(board, rnd, me)
+            utility = self.mobility(board, rnd, me)
+            print(utility)
+            return utility
         else:
-            return self.score_board(board, me)
+            utility = self.score_board(board, me)
+            print(utility)
+            return utility
 
     @staticmethod
     def score_board(board, me):
@@ -149,18 +188,26 @@ class AiGuy:
         """
         return len(self.get_hypo_valid_moves(rnd, me, board))
 
+    def stability(self, board, me):
+        """
+        Goes through all "my" pieces and checks if they are stable.
+        :param board: the current board
+        :param me: either player 1 or 2
+        :return: the number of stable stones
+        """
+        # TODO: go through all "my" pieces and check if they are stable using def is_stable_disk
+
     # -----------------------------------------------------------------------------------------------------------------------------------
 
     @staticmethod
-    def flip_in_dir(row, col, dir_x, dir_y, me, fake_state):
+    def is_stable_dir(row, col, dir_x, dir_y, board):
         """
         Returns the board if the move at given row and col is taken
         :param row: the row of the unoccupied square (int)
         :param col: the col of the unoccupied square (int)
         :param dir_x: row direction to look
         :param dir_y: col direction to look
-        :param me: the given player
-        :param fake_state: if changing a hypothetical state
+        :param board: if changing a hypothetical state
         :return: True or False
         """
         sequence = []
@@ -170,7 +217,69 @@ class AiGuy:
 
             if (r < 0) or (r > 7) or (c < 0) or (c > 7):
                 break
-            sequence.append(fake_state[r, c])
+            sequence.append(board[r, c])
+
+        if 0 in sequence:
+            return False
+        else:
+            return True
+
+    def is_stable_disk(self, x, y, me, board):
+        disk = [x, y]
+
+        # all corners are stable
+        if disk == self.UPPER_RIGHT:
+            return True
+        if disk == self.UPPER_LEFT:
+            return True
+        if disk == self.LOWER_RIGHT:
+            return True
+        if disk == self.LOWER_LEFT:
+            return True
+
+        # TODO: Need to check if it is corner anchored
+        # first check if any corner is taken by "me"
+        # then check if the square of stones back to the corner is all "my" color
+        # if so, I am in an anchored corner
+
+        # check if am on a stable side
+        if x == 0 and self.is_stable_dir(0, 0, 0, 1, board):
+            return True
+        if x == 7 and self.is_stable_dir(7, 0, 0, 1, board):
+            return True
+        if y == 0 and self.is_stable_dir(0, 0, 1, 0, board):
+            return True
+        if y == 7 and self.is_stable_dir(0, 7, 1, 0, board):
+            return True
+
+        # checks if every direction around it is filled (DO LAST)
+        for dir_x in range(-1, 2):  # check in all directions
+            for dir_y in range(-1, 2):
+                if (dir_x == 0) and (dir_y == 0):  # no need to check curr place
+                    if not self.is_stable_dir(x, y, dir_x, dir_y, board):
+                        return False
+        return True
+
+    @staticmethod
+    def flip_in_dir(row, col, dir_x, dir_y, me, board):
+        """
+        Returns the board if the move at given row and col is taken
+        :param row: the row of the unoccupied square (int)
+        :param col: the col of the unoccupied square (int)
+        :param dir_x: row direction to look
+        :param dir_y: col direction to look
+        :param me: the given player
+        :param board: if changing a hypothetical state
+        :return: True or False
+        """
+        sequence = []
+        for i in range(1, 8):
+            r = row + dir_y * i
+            c = col + dir_x * i
+
+            if (r < 0) or (r > 7) or (c < 0) or (c > 7):
+                break
+            sequence.append(board[r, c])
 
         stones_to_flip = 0
         can_flip = False
@@ -195,27 +304,23 @@ class AiGuy:
                     break
         if can_flip:
             for i in range(1, stones_to_flip + 1):
-                fake_state[row + dir_y * i, col + dir_x * i] = me
+                board[row + dir_y * i, col + dir_x * i] = me
 
-    def flip(self, row, col, me, fake_state):
+    def take_move(self, row, col, me, board):
         """
         Checks if an unoccupied square can be played by the given player
         :param row: the row of the unoccupied square (int)
         :param col: the col of the unoccupied square (int)
         :param me: the player
-        :param fake_state: the state to change
+        :param board: the state to change
         :return: True or False
         """
-        # print("BEFORE")
-        # print(fake_state)
         for dir_x in range(-1, 2):  # check in all directions
             for dir_y in range(-1, 2):
                 if (dir_x == 0) and (dir_y == 0):  # no need to check curr place
-                    fake_state[row, col] = me
-                self.flip_in_dir(row, col, dir_x, dir_y, me, fake_state)
-        # print("AFTER move {},{} for {}".format(row, col, me))
-        # print(fake_state)
-        return fake_state
+                    board[row, col] = me
+                self.flip_in_dir(row, col, dir_x, dir_y, me, board)
+        return board
 
     def get_hypo_valid_moves(self, rnd, me, board):
         """
