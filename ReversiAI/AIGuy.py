@@ -34,7 +34,7 @@ class AiGuy:
         :return: the move that should be taken
         """
         best_move = []
-        depth_to_go = 10  # adjust
+        depth_to_go = 100  # adjust
         alpha = -math.inf  # starting values
         beta = math.inf
         for i in range(len(valid_moves)):
@@ -114,10 +114,11 @@ class AiGuy:
 
     def ab_max(self, valid_move, depth_left, board, rnd, alpha, beta):
         if depth_left == 0:  # if at leaf node, return expected utility
-            # print("Terminal node.")
+            print("Terminal node.")
             return self.use_heuristic(board, rnd, self.me)
 
         value = -math.inf
+        print(depth_left)
 
         # get new board and new moves for next level down
         new_board = self.take_move(valid_move[0], valid_move[1], self.me, board)
@@ -127,7 +128,7 @@ class AiGuy:
         for move in new_moves:
             value = max(value, self.ab_min(move, depth_left-1, new_board, rnd, alpha, beta))
             if value >= beta:
-                # print("Beta cutoff")
+                print("Beta cutoff")
                 return value  # this is a beta cut off
             alpha = max(alpha, value)
         return value
@@ -144,7 +145,7 @@ class AiGuy:
         for move in new_moves:
             value = min(value, self.ab_max(move, depth_left-1, new_board, rnd, alpha, beta))
             if value <= alpha:
-                # print("Alpha cutoff")
+                print("Alpha cutoff")
                 return value  # this is an alpha cut off
             beta = min(beta, value)
         return value
