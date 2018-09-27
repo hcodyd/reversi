@@ -3,7 +3,6 @@ import socket
 import time
 import numpy as np
 import math
-from copy import deepcopy
 
 
 class AiGuy:
@@ -59,11 +58,9 @@ class AiGuy:
 
         move_returned_values = []
         for i in range(len(valid_moves_min)):
-            value = self.minimize_ab(valid_moves_min[i], depth_to_go - 1, deepcopy(new_fake_state), rnd + 1, alpha,
+            value = self.minimize_ab(valid_moves_min[i], depth_to_go - 1, np.copy(new_fake_state), rnd + 1, alpha,
                                      beta)
-            print(' value ', value, ' >= ',' beta ', beta)
             if value >= beta:
-                print('cut return value', value)
                 return value
             alpha = max(value, alpha)
             move_returned_values.append(value)
@@ -80,24 +77,22 @@ class AiGuy:
         move_returned_values = []
         for i in range(len(valid_moves_max)):
             value = (
-                self.maximize_ab(valid_moves_max[i], depth_to_go - 1, deepcopy(new_fake_state), rnd + 1, alpha, beta))
-            print('value ', value, ' <= ', ' alpha ', alpha)
+                self.maximize_ab(valid_moves_max[i], depth_to_go - 1, np.copy(new_fake_state), rnd + 1, alpha, beta))
             if value <= alpha:
-                print('cut retrun value', value)
                 return value
             beta = min(beta, value)
             move_returned_values.append(value)
         if len(move_returned_values) == 0:
             move_returned_values.append(0)
         return np.amin(move_returned_values)
-
+    #
     # def min_max(self, valid_moves):
     #     best_move = []
     #     depth_to_go = 4
     #     for i in range(len(valid_moves)):
     #         best_move.append(self.maximize(valid_moves[i], depth_to_go, deepcopy(self.state), self.rnd))
     #     return best_move.index(max(best_move))
-
+    #
     # def maximize(self, valid_move, depth_to_go, fake_state, rnd):
     #     if depth_to_go == 0:
     #         return self.use_heuristic(fake_state, rnd, self.me)
@@ -111,7 +106,7 @@ class AiGuy:
     #     if len(move_returned_values) == 0:
     #         move_returned_values.append(0)
     #     return np.amax(move_returned_values)
-
+    #
     # def minimize(self, valid_move, depth_to_go, fake_state, rnd):
     #     if depth_to_go == 0:
     #         return self.use_heuristic(fake_state, rnd, self.not_me)
@@ -126,39 +121,42 @@ class AiGuy:
     #         move_returned_values.append(0)
     #     return np.amin(move_returned_values)
 
-    def ab_max(self, valid_move, depth_left, board, rnd, alpha, beta):
-        if depth_left == 0:  # if at leaf node, return expected utility
-            return self.use_heuristic(board, rnd, self.me)
-
-        value = -math.inf
-
-        # get new board and new moves for next level down
-        new_board = self.take_move(valid_move[0], valid_move[1], self.me, board)
-        new_moves = self.get_hypo_valid_moves(rnd, self.not_me, new_board)
-
-        # look through all the moves and take the max of of the min
-        for move in new_moves:
-            value = max(value, self.ab_min(move, depth_left-1, np.copy(new_board), rnd, alpha, beta))
-            if value >= beta:
-                return value  # this is a beta cut off
-            alpha = max(alpha, value)
-        return value
-
-    def ab_min(self, valid_move, depth_left, board, rnd, alpha, beta):
-        if depth_left == 0:  # if at leaf node, return expected utility
-            return self.use_heuristic(board, rnd, self.not_me)
-
-        value = math.inf
-
-        new_board = self.take_move(valid_move[0], valid_move[1], self.me, board)
-        new_moves = self.get_hypo_valid_moves(rnd, self.not_me, new_board)
-
-        for move in new_moves:
-            value = min(value, self.ab_max(move, depth_left-1, np.copy(new_board), rnd, alpha, beta))
-            if value <= alpha:
-                return value  # this is an alpha cut off
-            beta = min(beta, value)
-        return value
+    # def ab_max(self, valid_move, depth_left, board, rnd, alpha, beta):
+    #     if depth_left == 0:  # if at leaf node, return expected utility
+    #         return self.use_heuristic(board, rnd, self.me)
+    #
+    #     print("-------------------- {}".format(depth_left))
+    #     value = -math.inf
+    #
+    #     # get new board and new moves for next level down
+    #     new_board = self.take_move(valid_move[0], valid_move[1], self.me, board)
+    #     new_moves = self.get_hypo_valid_moves(rnd, self.not_me, new_board)
+    #
+    #     # look through all the moves and take the max of of the min
+    #     for move in new_moves:
+    #         value = max(value, self.ab_min(move, depth_left-1, np.copy(new_board), rnd, alpha, beta))
+    #         if value >= beta:
+    #             print("Beta cut off")
+    #             return value  # this is a beta cut off
+    #         alpha = max(alpha, value)
+    #     return value
+    #
+    # def ab_min(self, valid_move, depth_left, board, rnd, alpha, beta):
+    #     if depth_left == 0:  # if at leaf node, return expected utility
+    #         return self.use_heuristic(board, rnd, self.not_me)
+    #
+    #     value = math.inf
+    #
+    #     new_board = self.take_move(valid_move[0], valid_move[1], self.me, board)
+    #     new_moves = self.get_hypo_valid_moves(rnd, self.not_me, new_board)
+    #
+    #     for move in new_moves:
+    #         value = min(value, self.ab_max(move, depth_left-1, np.copy(new_board), rnd, alpha, beta))
+    #         if value <= alpha:
+    #             print("Alpha cut off")
+    #             return value  # this is an alpha cut off
+    #         beta = min(beta, value)
+    #     return value
 
     # ------------------------------------------------------------Heuristics-------------------------------------------------------------
 
@@ -178,15 +176,20 @@ class AiGuy:
         :param me: 1 or 2 depending on player perspective
         :return: a utility (int)
         """
-        # if rnd < 10:
-        #     return self.mobility(board, rnd, me)
-        if rnd < 44:
+        if rnd < 10:
+            mobility = self.mobility(board, rnd, me)
+            print("U: {}".format(mobility))
+            return mobility
+        elif rnd < 44:
             mobility = self.mobility(board, rnd, me)
             stability = self.stability(board, me)
             strategic = self.strategic_points(board, me)
+            print("U: {}".format(mobility * (stability + 1)))
             return mobility * (stability + 1) + strategic
         else:
-            return self.score_board(board, me) * (self.stability(board, me) + 1)
+            points = self.score_board(board, me) * (self.stability(board, me) + 1)
+            print("U: {}".format(points))
+            return points
 
     @staticmethod
     def score_board(board, me):
@@ -244,10 +247,15 @@ class AiGuy:
                 break
             sequence.append(board[r, c])
 
-        if 0 in sequence:
-            return False
-        else:
+        empty = 0
+        for val in sequence:
+            if val == 0:
+                empty += 1
+
+        if empty == 1:  # if there is only one un-taken spot, that is the one open spot for this move
             return True
+        else:
+            return False
 
     @staticmethod
     def is_dir_me(row, col, dir_x, dir_y, board, me):
