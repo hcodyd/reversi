@@ -34,7 +34,7 @@ class AiGuy:
         :return: the move that should be taken
         """
         best_move = []
-        depth_to_go = 100  # adjust
+        depth_to_go = 6  # adjust
         alpha = -math.inf  # starting values
         beta = math.inf
         for i in range(len(valid_moves)):
@@ -114,11 +114,9 @@ class AiGuy:
 
     def ab_max(self, valid_move, depth_left, board, rnd, alpha, beta):
         if depth_left == 0:  # if at leaf node, return expected utility
-            print("Terminal node.")
             return self.use_heuristic(board, rnd, self.me)
 
         value = -math.inf
-        print(depth_left)
 
         # get new board and new moves for next level down
         new_board = self.take_move(valid_move[0], valid_move[1], self.me, board)
@@ -126,9 +124,8 @@ class AiGuy:
 
         # look through all the moves and take the max of of the min
         for move in new_moves:
-            value = max(value, self.ab_min(move, depth_left-1, new_board, rnd, alpha, beta))
+            value = max(value, self.ab_min(move, depth_left-1, deepcopy(new_board), rnd, alpha, beta))
             if value >= beta:
-                print("Beta cutoff")
                 return value  # this is a beta cut off
             alpha = max(alpha, value)
         return value
@@ -143,9 +140,8 @@ class AiGuy:
         new_moves = self.get_hypo_valid_moves(rnd, self.not_me, new_board)
 
         for move in new_moves:
-            value = min(value, self.ab_max(move, depth_left-1, new_board, rnd, alpha, beta))
+            value = min(value, self.ab_max(move, depth_left-1, deepcopy(new_board), rnd, alpha, beta))
             if value <= alpha:
-                print("Alpha cutoff")
                 return value  # this is an alpha cut off
             beta = min(beta, value)
         return value
@@ -160,14 +156,14 @@ class AiGuy:
         :param me: 1 or 2 depending on player perspective
         :return: a utility (int)
         """
-        if rnd < 44:
-            utility = self.mobility(board, rnd, me)
-            print(utility)
-            return utility
+        if rnd < 10:
+            return self.mobility(board, rnd, me)
+        elif rnd < 44:
+            mobility = self.mobility(board, rnd, me)
+            stability = self.stability(board, me)
+            return mobility * (stability + 1)
         else:
-            utility = self.score_board(board, me)
-            print(utility)
-            return utility
+            return self.score_board(board, me) * (self.stability(board, me) + 1)
 
     @staticmethod
     def score_board(board, me):
@@ -196,7 +192,12 @@ class AiGuy:
         :param me: either player 1 or 2
         :return: the number of stable stones
         """
-        # TODO: go through all "my" pieces and check if they are stable using def is_stable_disk
+        stable_disks = 0
+        for i in range(8):
+            for j in range(8):
+                if self.is_stable_disk(i, j, me, board):
+                    stable_disks += 1
+        return stable_disks
 
     # -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -225,7 +226,45 @@ class AiGuy:
         else:
             return True
 
+    @staticmethod
+    def is_dir_me(row, col, dir_x, dir_y, board, me):
+        """
+        Returns True if all the pieces in that direction are filled by "me"
+        :param row: the row of the unoccupied square (int)
+        :param col: the col of the unoccupied square (int)
+        :param dir_x: row direction to look
+        :param dir_y: col direction to look
+        :param board: if changing a hypothetical state
+        :param me: 1 or 2
+        :return: True or False
+        """
+        sequence = []
+        for i in range(1, 8):
+            r = row + dir_y * i
+            c = col + dir_x * i
+
+            if (r < 0) or (r > 7) or (c < 0) or (c > 7):
+                break
+            sequence.append(board[r, c])
+
+        if 0 in sequence:
+            return False
+        elif (me == 1) and (2 in sequence):
+            return False
+        elif (me == 2) and (1 in sequence):
+            return False
+        else:
+            return True
+
     def is_stable_disk(self, x, y, me, board):
+        """
+        Check if the given disk is stable (can't be flipped).
+        :param x: the x coord of the disk
+        :param y: the y coord of the disk
+        :param me: the player (1 or 2)
+        :param board: the board
+        :return: true or false
+        """
         disk = [x, y]
 
         # all corners are stable
@@ -238,10 +277,17 @@ class AiGuy:
         if disk == self.LOWER_LEFT:
             return True
 
-        # TODO: Need to check if it is corner anchored
         # first check if any corner is taken by "me"
         # then check if the square of stones back to the corner is all "my" color
         # if so, I am in an anchored corner
+        if (board[0, 0] == me) and (self.is_dir_me(x, y, -1, 0, board, me) and (self.is_dir_me(x, y, 0, -1, board, me))):
+            return True
+        if (board[0, 7] == me) and (self.is_dir_me(x, y, -1, 0, board, me) and (self.is_dir_me(x, y, 0, 1, board, me))):
+            return True
+        if (board[7, 0] == me) and (self.is_dir_me(x, y, 1, 0, board, me) and (self.is_dir_me(x, y, 0, -1, board, me))):
+            return True
+        if (board[7, 7] == me) and (self.is_dir_me(x, y, 1, 0, board, me) and (self.is_dir_me(x, y, 0, 1, board, me))):
+            return True
 
         # check if am on a stable side
         if x == 0 and self.is_stable_dir(0, 0, 0, 1, board):
@@ -345,7 +391,7 @@ class AiGuy:
             else:
                 for i in range(8):
                     for j in range(8):
-                        if board[i][j] == 0:
+                        if board[i, j] == 0:
                             if self.hypo_could_be(i, j, me, board):
                                 valid_moves.append([i, j])
         return valid_moves
