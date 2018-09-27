@@ -2,7 +2,6 @@ import sys
 import socket
 import time
 import numpy as np
-from copy import deepcopy
 import math
 
 
@@ -38,7 +37,7 @@ class AiGuy:
         alpha = -math.inf  # starting values
         beta = math.inf
         for i in range(len(valid_moves)):
-            best_move.append(self.ab_max(valid_moves[i], depth_to_go, deepcopy(self.state), self.rnd, alpha, beta))
+            best_move.append(self.ab_max(valid_moves[i], depth_to_go, np.copy(self.state), self.rnd, alpha, beta))
         return best_move.index(max(best_move))
 
     # def maximize_ab(self, valid_move, depth_to_go, fake_state, rnd, alpha, beta):
@@ -124,7 +123,7 @@ class AiGuy:
 
         # look through all the moves and take the max of of the min
         for move in new_moves:
-            value = max(value, self.ab_min(move, depth_left-1, deepcopy(new_board), rnd, alpha, beta))
+            value = max(value, self.ab_min(move, depth_left-1, np.copy(new_board), rnd, alpha, beta))
             if value >= beta:
                 return value  # this is a beta cut off
             alpha = max(alpha, value)
@@ -140,7 +139,7 @@ class AiGuy:
         new_moves = self.get_hypo_valid_moves(rnd, self.not_me, new_board)
 
         for move in new_moves:
-            value = min(value, self.ab_max(move, depth_left-1, deepcopy(new_board), rnd, alpha, beta))
+            value = min(value, self.ab_max(move, depth_left-1, np.copy(new_board), rnd, alpha, beta))
             if value <= alpha:
                 return value  # this is an alpha cut off
             beta = min(beta, value)
