@@ -3,6 +3,8 @@ import socket
 import time
 import numpy as np
 import math
+from random import randint
+from copy import deepcopy
 
 
 class AiGuy:
@@ -20,8 +22,8 @@ class AiGuy:
         [10, -10, 10, 0, 0, 10, -10, 10],
         [-10, -20, 0, 0, 0, 0, -20, -10],
         [10, 0, 10, 0, 0, 10, 0, 10],
-        [0,0,0,0,0,0,0,0],
-        [0,0,0,0,0,0,0,0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
         [10, 0, 10, 0, 0, 10, 0, 10],
         [-10, -20, 0, 0, 0, 0, -20, -10],
         [10, -10, 10, 0, 0, 10, -10, 10]
@@ -43,16 +45,20 @@ class AiGuy:
         :return: the move that should be taken
         """
         best_move = []
-        depth_to_go = 6  # adjust
+        if self.rnd < 10:
+            depth_to_go = 2  # adjust
+        else:
+            depth_to_go = 6
+
         alpha = -math.inf  # starting values
         beta = math.inf
         for i in range(len(valid_moves)):
-            best_move.append(self.maximize_ab(valid_moves[i], depth_to_go, np.copy(self.state), self.rnd, alpha, beta))
+            best_move.append(self.maximize_ab(valid_moves[i], depth_to_go, np.copy(self.state), deepcopy(self.rnd)+1, alpha, beta))
         return best_move.index(max(best_move))
 
     def maximize_ab(self, valid_move, depth_to_go, fake_state, rnd, alpha, beta):
         if depth_to_go == 0:  # reached maximum depth
-            return self.use_heuristic(fake_state, rnd, self.me)  # when using max, looking from "my" perspective
+            return self.take_random_sampling(fake_state, rnd, self.me)  # when using max, looking from "my" perspective
         new_fake_state = self.take_move(valid_move[0], valid_move[1], self.me, fake_state)
         valid_moves_min = self.get_hypo_valid_moves(rnd + 1, self.not_me, new_fake_state)
 
@@ -70,7 +76,7 @@ class AiGuy:
 
     def minimize_ab(self, valid_move, depth_to_go, fake_state, rnd, alpha, beta):
         if depth_to_go == 0:
-            return self.use_heuristic(fake_state, rnd, self.not_me)
+            return self.take_random_sampling(fake_state, rnd, self.not_me)
         new_fake_state = self.take_move(valid_move[0], valid_move[1], self.not_me, fake_state)
         valid_moves_max = self.get_hypo_valid_moves(rnd + 1, self.me, new_fake_state)
 
@@ -121,52 +127,34 @@ class AiGuy:
     #         move_returned_values.append(0)
     #     return np.amin(move_returned_values)
 
-    # def ab_max(self, valid_move, depth_left, board, rnd, alpha, beta):
-    #     if depth_left == 0:  # if at leaf node, return expected utility
-    #         return self.use_heuristic(board, rnd, self.me)
-    #
-    #     print("-------------------- {}".format(depth_left))
-    #     value = -math.inf
-    #
-    #     # get new board and new moves for next level down
-    #     new_board = self.take_move(valid_move[0], valid_move[1], self.me, board)
-    #     new_moves = self.get_hypo_valid_moves(rnd, self.not_me, new_board)
-    #
-    #     # look through all the moves and take the max of of the min
-    #     for move in new_moves:
-    #         value = max(value, self.ab_min(move, depth_left-1, np.copy(new_board), rnd, alpha, beta))
-    #         if value >= beta:
-    #             print("Beta cut off")
-    #             return value  # this is a beta cut off
-    #         alpha = max(alpha, value)
-    #     return value
-    #
-    # def ab_min(self, valid_move, depth_left, board, rnd, alpha, beta):
-    #     if depth_left == 0:  # if at leaf node, return expected utility
-    #         return self.use_heuristic(board, rnd, self.not_me)
-    #
-    #     value = math.inf
-    #
-    #     new_board = self.take_move(valid_move[0], valid_move[1], self.me, board)
-    #     new_moves = self.get_hypo_valid_moves(rnd, self.not_me, new_board)
-    #
-    #     for move in new_moves:
-    #         value = min(value, self.ab_max(move, depth_left-1, np.copy(new_board), rnd, alpha, beta))
-    #         if value <= alpha:
-    #             print("Alpha cut off")
-    #             return value  # this is an alpha cut off
-    #         beta = min(beta, value)
-    #     return value
-
     # ------------------------------------------------------------Heuristics-------------------------------------------------------------
 
-    def strategic_points(self, board, me):
-        strategic_points = 0
-        for i in range(len(board[0])):
-            for j in range(len(board[0])):
-                if board[1][j] == me:
-                    strategic_points += self.strategicPoints[i][j]
-        return strategic_points
+    def take_random_sampling(self, board, rnd, me):
+        # print("--------------------------")
+        total = 0
+        for i in range(0, 10):
+            utility = self.random_sample(np.copy(board), me, rnd, 2)
+            # print(utility)
+            total += utility
+        return total//20
+
+    def random_sample(self, board, me, rnd, depth_left):
+        if depth_left == 0:
+            return self.use_heuristic(board, rnd, me)
+
+        # print("rnd {} player {}".format(rnd, me))
+        # print(board)
+        moves = self.get_hypo_valid_moves(rnd, me, board)
+        # print("Possible moves {}".format(moves))
+        rand = randint(0, len(moves)-1)
+        random_move = moves[rand]
+        new_board = self.take_move(random_move[0], random_move[1], me, board)
+        # print(new_board)
+        if me == 1:
+            me = 2
+        else:
+            me = 1
+        return self.random_sample(np.copy(new_board), me, rnd+1, depth_left-1)
 
     def use_heuristic(self, board, rnd, me):
         """
@@ -176,20 +164,21 @@ class AiGuy:
         :param me: 1 or 2 depending on player perspective
         :return: a utility (int)
         """
-        if rnd < 10:
-            mobility = self.mobility(board, rnd, me)
-            print("U: {}".format(mobility))
-            return mobility
-        elif rnd < 44:
-            mobility = self.mobility(board, rnd, me)
+        if rnd < 44:
             stability = self.stability(board, me)
             strategic = self.strategic_points(board, me)
-            print("U: {}".format(mobility * (stability + 1)))
-            return mobility * (stability + 1) + strategic
+            return (stability + 1) * strategic
         else:
-            points = self.score_board(board, me) * (self.stability(board, me) + 1)
-            print("U: {}".format(points))
+            points = self.score_board(board, me) * (self.stability(board, me) + 1) * self.strategic_points(board, me)
             return points
+
+    def strategic_points(self, board, me):
+        strategic_points = 0
+        for i in range(len(board[0])):
+            for j in range(len(board[0])):
+                if board[1, j] == me:
+                    strategic_points += self.strategicPoints[i][j]
+        return strategic_points
 
     @staticmethod
     def score_board(board, me):
@@ -311,7 +300,8 @@ class AiGuy:
         # first check if any corner is taken by "me"
         # then check if the square of stones back to the corner is all "my" color
         # if so, I am in an anchored corner
-        if (board[0, 0] == me) and (self.is_dir_me(x, y, -1, 0, board, me) and (self.is_dir_me(x, y, 0, -1, board, me))):
+        if (board[0, 0] == me) and (
+                self.is_dir_me(x, y, -1, 0, board, me) and (self.is_dir_me(x, y, 0, -1, board, me))):
             return True
         if (board[0, 7] == me) and (self.is_dir_me(x, y, -1, 0, board, me) and (self.is_dir_me(x, y, 0, 1, board, me))):
             return True
@@ -409,22 +399,22 @@ class AiGuy:
         :return: the valid moves
         """
         valid_moves = []
-        if board is not None:
-            if rnd < 4:
-                if board[3][3] == 0:
-                    valid_moves.append([3, 3])
-                if board[3][4] == 0:
-                    valid_moves.append([3, 4])
-                if board[4][3] == 0:
-                    valid_moves.append([4, 3])
-                if board[4][4] == 0:
-                    valid_moves.append([4, 4])
-            else:
-                for i in range(8):
-                    for j in range(8):
-                        if board[i, j] == 0:
-                            if self.hypo_could_be(i, j, me, board):
-                                valid_moves.append([i, j])
+        if rnd < 4:
+            if board[3, 3] == 0:
+                valid_moves.append([3, 3])
+            if board[3, 4] == 0:
+                valid_moves.append([3, 4])
+            if board[4, 3] == 0:
+                valid_moves.append([4, 3])
+            if board[4, 4] == 0:
+                valid_moves.append([4, 4])
+        else:
+            for i in range(8):
+                for j in range(8):
+                    if board[i, j] == 0:
+                        if self.hypo_could_be(i, j, me, board):
+                            valid_moves.append([i, j])
+
         return valid_moves
 
     def hypo_could_be(self, row, col, me, board):
@@ -551,18 +541,18 @@ class AiGuy:
         """
         valid_moves = []
         if rnd < 4:
-            if self.state[3][3] == 0:
+            if self.state[3, 3] == 0:
                 valid_moves.append([3, 3])
-            if self.state[3][4] == 0:
+            if self.state[3, 4] == 0:
                 valid_moves.append([3, 4])
-            if self.state[4][3] == 0:
+            if self.state[4, 3] == 0:
                 valid_moves.append([4, 3])
-            if self.state[4][4] == 0:
+            if self.state[4, 4] == 0:
                 valid_moves.append([4, 4])
         else:
             for i in range(8):
                 for j in range(8):
-                    if self.state[i][j] == 0:
+                    if self.state[i, j] == 0:
                         if self.could_be(i, j, me):
                             valid_moves.append([i, j])
 
