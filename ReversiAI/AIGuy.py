@@ -131,14 +131,15 @@ class AiGuy:
     #     return np.amin(move_returned_values)
 
     def ab_max(self, valid_move, depth_left, board, rnd, alpha, beta):
-        if depth_left == 0 or (time.time() - self.start_time) > self.move_search_time:  # if at leaf node, return expected utility
-            return self.use_heuristic(board, rnd, self.me)
 
         # print("----------Max---------- {}".format(depth_left))
         value = -math.inf
 
         # get new board and new moves for next level down
         new_board = self.take_move(valid_move[0], valid_move[1], self.me, board)
+
+        if depth_left == 0 or (time.time() - self.start_time) > self.move_search_time:  # if at leaf node, return expected utility
+            return self.use_heuristic(new_board, rnd, self.me)
         new_moves = self.get_hypo_valid_moves(rnd, self.not_me, new_board)
 
         # look through all the moves and take the max of of the min
@@ -151,12 +152,13 @@ class AiGuy:
         return value
 
     def ab_min(self, valid_move, depth_left, board, rnd, alpha, beta):
-        if depth_left == 0 or (time.time() - self.start_time) > self.move_search_time:  # if at leaf node, return expected utility
-            return self.use_heuristic(board, rnd, self.not_me)
         # print("--------MIN------------ {}".format(depth_left))
         value = math.inf
 
         new_board = self.take_move(valid_move[0], valid_move[1], self.not_me, board)
+
+        if depth_left == 0 or (time.time() - self.start_time) > self.move_search_time:  # if at leaf node, return expected utility
+            return self.use_heuristic(new_board, rnd, self.not_me)
         new_moves = self.get_hypo_valid_moves(rnd, self.me, new_board)
 
         for x in new_moves:
