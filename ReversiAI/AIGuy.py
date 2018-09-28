@@ -19,14 +19,14 @@ class AiGuy:
     me = 0  # this will be set by the server to either 1 or 2
     not_me = 0  # used for keeping track when flipping
     strategicPoints = [
-        [10, -10, 10, 0, 0, 10, -10, 10],
-        [-10, -20, 0, 0, 0, 0, -20, -10],
-        [10, 0, 10, 0, 0, 10, 0, 10],
-        [0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0],
-        [10, 0, 10, 0, 0, 10, 0, 10],
-        [-10, -20, 0, 0, 0, 0, -20, -10],
-        [10, -10, 10, 0, 0, 10, -10, 10]
+        [10,  -10, 10,  2,  2, 10, -10,  10],
+        [-10, -20, -4, -2, -2, -4, -20, -10],
+        [10,   -1, 10,  0,  0, 10,  -1,  10],
+        [2,    -1,  0,  1,  1,  0,  -1,   2],
+        [2,    -1,  0,  1,  1,  0,  -1,   2],
+        [10,   -1, 10,  0,  0, 10,  -1,  10],
+        [-10, -20, -2, -2, -1, -4, -20, -10],
+        [10,  -10, 10,  2,  2, 10, -10,  10]
     ]
 
     t1 = 0.0  # the amount of time remaining to player 1
@@ -52,8 +52,10 @@ class AiGuy:
 
         alpha = -math.inf  # starting values
         beta = math.inf
+        self.start_time = time.time()
         for i in range(len(valid_moves)):
             best_move.append(self.maximize_ab(valid_moves[i], depth_to_go, np.copy(self.state), deepcopy(self.rnd)+1, alpha, beta))
+        print(time.time()-self.start_time)
         return best_move.index(max(best_move))
 
     def maximize_ab(self, valid_move, depth_to_go, fake_state, rnd, alpha, beta):
@@ -127,6 +129,43 @@ class AiGuy:
     #         move_returned_values.append(0)
     #     return np.amin(move_returned_values)
 
+    def ab_max(self, valid_move, depth_left, board, rnd, alpha, beta):
+        if depth_left == 0:  # if at leaf node, return expected utility
+            return self.use_heuristic(board, rnd, self.me)
+
+        # print("----------Max---------- {}".format(depth_left))
+        value = -math.inf
+
+        # get new board and new moves for next level down
+        new_board = self.take_move(valid_move[0], valid_move[1], self.me, board)
+        new_moves = self.get_hypo_valid_moves(rnd, self.not_me, new_board)
+
+        # look through all the moves and take the max of of the min
+        for x in new_moves:
+            value = max(value, self.ab_min(x, depth_left-1, np.copy(new_board), rnd+1, alpha, beta))
+            if value >= beta:
+                # print("Beta cut off")
+                return value  # this is a beta cut off
+            alpha = max(alpha, value)
+        return value
+
+    def ab_min(self, valid_move, depth_left, board, rnd, alpha, beta):
+        if depth_left == 0:  # if at leaf node, return expected utility
+            return self.use_heuristic(board, rnd, self.not_me)
+        # print("--------MIN------------ {}".format(depth_left))
+        value = math.inf
+
+        new_board = self.take_move(valid_move[0], valid_move[1], self.me, board)
+        new_moves = self.get_hypo_valid_moves(rnd, self.not_me, new_board)
+
+        for x in new_moves:
+            value = min(value, self.ab_max(x, depth_left-1, np.copy(new_board), rnd+1, alpha, beta))
+            if value <= alpha:
+                # print("Alpha cut off")
+                return value  # this is an alpha cut off
+            beta = min(beta, value)
+        return value
+
     # ------------------------------------------------------------Heuristics-------------------------------------------------------------
 
     def take_random_sampling(self, board, rnd, me):
@@ -170,7 +209,7 @@ class AiGuy:
         if rnd < 44:
             stability = self.stability(board, me)
             strategic = self.strategic_points(board, me)
-            return (stability + 1) * strategic
+            return strategic + stability
         else:
             points = self.score_board(board, me) * (self.stability(board, me) + 1) * self.strategic_points(board, me)
             return points
@@ -418,7 +457,7 @@ class AiGuy:
                         if self.hypo_could_be(i, j, me, board):
                             valid_moves.append([i, j])
 
-        return valid_moves
+        return np.array(valid_moves)
 
     def hypo_could_be(self, row, col, me, board):
         """
