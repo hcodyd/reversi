@@ -19,14 +19,14 @@ class AiGuy:
     me = 0  # this will be set by the server to either 1 or 2
     not_me = 0  # used for keeping track when flipping
     strategicPoints = [
-        [10,  -10, 10,  2,  2, 10, -10,  10],
-        [-10, -20, -4, -2, -2, -4, -20, -10],
-        [10,   -1, 10,  0,  0, 10,  -1,  10],
-        [2,    -1,  0,  1,  1,  0,  -1,   2],
-        [2,    -1,  0,  1,  1,  0,  -1,   2],
-        [10,   -1, 10,  0,  0, 10,  -1,  10],
-        [-10, -20, -2, -2, -1, -4, -20, -10],
-        [10,  -10, 10,  2,  2, 10, -10,  10]
+        [100,  -10, 100,  2,  2, 100, -10,  100],
+        [-10, -20, -4,  5,  5, -4, -20, -10],
+        [100,   -1, 10,  0,  0, 100,  -1,  100],
+        [2,     5,  0,  1,  1,  0,   5,   2],
+        [2,     5,  0,  1,  1,  0,   5,   2],
+        [100,   -1, 100,  0,  0, 100,  -1,  10],
+        [-10, -20, -2,  5,  5, -4, -20, -10],
+        [100,  -10, 100,  2,  2, 10, -10,  100]
     ]
 
     t1 = 0.0  # the amount of time remaining to player 1
@@ -45,6 +45,7 @@ class AiGuy:
         :return: the move that should be taken
         """
         best_move = []
+        self.move_search_time = 99999
         if self.rnd < 10:
             depth_to_go = 2  # adjust
         else:
@@ -54,12 +55,12 @@ class AiGuy:
         beta = math.inf
         self.start_time = time.time()
         for i in range(len(valid_moves)):
-            best_move.append(self.maximize_ab(valid_moves[i], depth_to_go, np.copy(self.state), deepcopy(self.rnd)+1, alpha, beta))
+            best_move.append(self.ab_max(valid_moves[i], depth_to_go, np.copy(self.state), deepcopy(self.rnd)+1, alpha, beta))
         print(time.time()-self.start_time)
         return best_move.index(max(best_move))
 
     def maximize_ab(self, valid_move, depth_to_go, fake_state, rnd, alpha, beta):
-        if depth_to_go == 0:  # reached maximum depth
+        if depth_to_go == 0 or (time.time() - self.start_time) > self.move_search_time:  # reached maximum depth
             return self.take_random_sampling(fake_state, rnd, self.me)  # when using max, looking from "my" perspective
         new_fake_state = self.take_move(valid_move[0], valid_move[1], self.me, fake_state)
         valid_moves_min = self.get_hypo_valid_moves(rnd + 1, self.not_me, new_fake_state)
@@ -77,7 +78,7 @@ class AiGuy:
         return np.amax(move_returned_values)
 
     def minimize_ab(self, valid_move, depth_to_go, fake_state, rnd, alpha, beta):
-        if depth_to_go == 0:
+        if depth_to_go == 0 or (time.time() - self.start_time) > self.move_search_time:
             return self.take_random_sampling(fake_state, rnd, self.not_me)
         new_fake_state = self.take_move(valid_move[0], valid_move[1], self.not_me, fake_state)
         valid_moves_max = self.get_hypo_valid_moves(rnd + 1, self.me, new_fake_state)
@@ -130,7 +131,7 @@ class AiGuy:
     #     return np.amin(move_returned_values)
 
     def ab_max(self, valid_move, depth_left, board, rnd, alpha, beta):
-        if depth_left == 0:  # if at leaf node, return expected utility
+        if depth_left == 0 or (time.time() - self.start_time) > self.move_search_time:  # if at leaf node, return expected utility
             return self.use_heuristic(board, rnd, self.me)
 
         # print("----------Max---------- {}".format(depth_left))
@@ -150,13 +151,13 @@ class AiGuy:
         return value
 
     def ab_min(self, valid_move, depth_left, board, rnd, alpha, beta):
-        if depth_left == 0:  # if at leaf node, return expected utility
+        if depth_left == 0 or (time.time() - self.start_time) > self.move_search_time:  # if at leaf node, return expected utility
             return self.use_heuristic(board, rnd, self.not_me)
         # print("--------MIN------------ {}".format(depth_left))
         value = math.inf
 
-        new_board = self.take_move(valid_move[0], valid_move[1], self.me, board)
-        new_moves = self.get_hypo_valid_moves(rnd, self.not_me, new_board)
+        new_board = self.take_move(valid_move[0], valid_move[1], self.not_me, board)
+        new_moves = self.get_hypo_valid_moves(rnd, self.me, new_board)
 
         for x in new_moves:
             value = min(value, self.ab_max(x, depth_left-1, np.copy(new_board), rnd+1, alpha, beta))
@@ -206,10 +207,15 @@ class AiGuy:
         :param me: 1 or 2 depending on player perspective
         :return: a utility (int)
         """
+        opp = 1 if me == 2 else 2
+
         if rnd < 44:
             stability = self.stability(board, me)
             strategic = self.strategic_points(board, me)
-            return strategic + stability
+            mobility = self.mobility(board, rnd, opp)
+            flipped_with_move = self.score_board(board, me)
+            # print(strategic * .8 + stability * .5 + mobility * .8 + flipped_with_move * .2)
+            return strategic * .8 + stability * .5 + mobility * .8 + flipped_with_move * .5
         else:
             points = self.score_board(board, me) * (self.stability(board, me) + 1) * self.strategic_points(board, me)
             return points
@@ -228,9 +234,9 @@ class AiGuy:
         player_one_score = np.count_nonzero(board == 1)
         player_two_score = np.count_nonzero(board == 2)
         if me == 1:
-            return np.abs(player_one_score)
+            return player_one_score - player_two_score
         else:
-            return np.abs(player_two_score)
+            return player_two_score - player_one_score
 
     def mobility(self, board, rnd, me):
         """
@@ -240,7 +246,8 @@ class AiGuy:
         :param me: the player to test for
         :return: the number of available moves (int)
         """
-        return len(self.get_hypo_valid_moves(rnd, me, board))
+        oppMove = 1 if len(self.get_hypo_valid_moves(rnd, self.not_me, board)) == 0 else len(self.get_hypo_valid_moves(rnd, self.not_me, board))
+        return len(self.get_hypo_valid_moves(rnd, self.me, board))/oppMove
 
     def stability(self, board, me):
         """
@@ -429,7 +436,8 @@ class AiGuy:
             for dir_y in range(-1, 2):
                 if (dir_x == 0) and (dir_y == 0):  # no need to check curr place
                     board[row, col] = me
-                self.flip_in_dir(row, col, dir_x, dir_y, me, board)
+                else:
+                    self.flip_in_dir(row, col, dir_x, dir_y, me, board)
         return board
 
     def get_hypo_valid_moves(self, rnd, me, board):
