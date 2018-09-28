@@ -132,8 +132,8 @@ class AiGuy:
     def take_random_sampling(self, board, rnd, me):
         # print("--------------------------")
         total = 0
-        for i in range(0, 10):
-            utility = self.random_sample(np.copy(board), me, rnd, 2)
+        for i in range(0, 10):  # adjust
+            utility = self.random_sample(np.copy(board), me, rnd, 2)  # adjust
             # print(utility)
             total += utility
         return total//20
@@ -146,7 +146,10 @@ class AiGuy:
         # print(board)
         moves = self.get_hypo_valid_moves(rnd, me, board)
         # print("Possible moves {}".format(moves))
-        rand = randint(0, len(moves)-1)
+        if (len(moves) == 0) or (len(moves) == 1):
+            return self.use_heuristic(board, rnd, me)
+        else:
+            rand = randint(0, len(moves)-1)
         random_move = moves[rand]
         new_board = self.take_move(random_move[0], random_move[1], me, board)
         # print(new_board)
