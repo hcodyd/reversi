@@ -48,12 +48,14 @@ class AiGuy:
         if self.rnd < 10:
             depth_to_go = 2  # adjust
         else:
-            depth_to_go = 6
+            depth_to_go = 40
 
         alpha = -math.inf  # starting values
         beta = math.inf
+        self.start_time = time.time()
         for i in range(len(valid_moves)):
-            best_move.append(self.maximize_ab(valid_moves[i], depth_to_go, np.copy(self.state), deepcopy(self.rnd)+1, alpha, beta))
+            best_move.append(self.ab_max(valid_moves[i], depth_to_go, np.copy(self.state), deepcopy(self.rnd)+1, alpha, beta))
+        print(time.time()-self.start_time)
         return best_move.index(max(best_move))
 
     def maximize_ab(self, valid_move, depth_to_go, fake_state, rnd, alpha, beta):
@@ -126,6 +128,43 @@ class AiGuy:
     #     if len(move_returned_values) == 0:
     #         move_returned_values.append(0)
     #     return np.amin(move_returned_values)
+
+    def ab_max(self, valid_move, depth_left, board, rnd, alpha, beta):
+        if depth_left == 0:  # if at leaf node, return expected utility
+            return self.use_heuristic(board, rnd, self.me)
+
+        print("-------------------- {}".format(depth_left))
+        value = -math.inf
+
+        # get new board and new moves for next level down
+        new_board = self.take_move(valid_move[0], valid_move[1], self.me, board)
+        new_moves = self.get_hypo_valid_moves(rnd, self.not_me, new_board)
+
+        # look through all the moves and take the max of of the min
+        for move in np.nditer(new_moves, flags=['external_loop', 'buffered','zerosize_ok', 'reduce_ok'], order='A'):
+            value = max(value, self.ab_min(move, depth_left-1, np.copy(new_board), rnd+1, alpha, beta))
+            if value >= beta:
+                print("Beta cut off")
+                return value  # this is a beta cut off
+            alpha = max(alpha, value)
+        return value
+
+    def ab_min(self, valid_move, depth_left, board, rnd, alpha, beta):
+        if depth_left == 0:  # if at leaf node, return expected utility
+            return self.use_heuristic(board, rnd, self.not_me)
+
+        value = math.inf
+
+        new_board = self.take_move(valid_move[0], valid_move[1], self.me, board)
+        new_moves = self.get_hypo_valid_moves(rnd, self.not_me, new_board)
+
+        for move in np.nditer(new_moves, flags=['external_loop', 'buffered', 'zerosize_ok', 'reduce_ok'], order='A'):
+            value = min(value, self.ab_max(move, depth_left-1, np.copy(new_board), rnd+1, alpha, beta))
+            if value <= alpha:
+                print("Alpha cut off")
+                return value  # this is an alpha cut off
+            beta = min(beta, value)
+        return value
 
     # ------------------------------------------------------------Heuristics-------------------------------------------------------------
 
@@ -415,7 +454,7 @@ class AiGuy:
                         if self.hypo_could_be(i, j, me, board):
                             valid_moves.append([i, j])
 
-        return valid_moves
+        return np.array(valid_moves)
 
     def hypo_could_be(self, row, col, me, board):
         """
