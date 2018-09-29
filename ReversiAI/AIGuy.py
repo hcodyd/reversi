@@ -20,13 +20,13 @@ class AiGuy:
     not_me = 0  # used for keeping track when flipping
     strategicPoints = [
         [100,  -10, 100,  2,  2, 100, -10,  100],
-        [-10, -20, -4,  5,  5, -4, -20, -10],
-        [100,   -1, 10,  0,  0, 100,  -1,  100],
+        [-10, -200, -4,  5,  5, -4, -200, -10],
+        [100,   -1, 100,  0,  0, 100,  -1,  100],
         [2,     5,  0,  1,  1,  0,   5,   2],
         [2,     5,  0,  1,  1,  0,   5,   2],
-        [100,   -1, 100,  0,  0, 100,  -1,  10],
-        [-10, -20, -2,  5,  5, -4, -20, -10],
-        [100,  -10, 100,  2,  2, 10, -10,  100]
+        [100,   -1, 100,  0,  0, 100,  -1,  100],
+        [-10, -200, -2,  5,  5, -4, -200, -10],
+        [100,  -10, 100,  2,  2, 100, -10,  100]
     ]
 
     t1 = 0.0  # the amount of time remaining to player 1
@@ -46,89 +46,71 @@ class AiGuy:
         """
         best_move = []
         self.move_search_time = 99999
-        if self.rnd < 10:
-            depth_to_go = 2  # adjust
+        if self.rnd <= 10:
+            depth_to_go = 3
+        if self.rnd <= 20 and self.rnd >= 10:
+            depth_to_go = 4  # adjust
         else:
-            depth_to_go = 6
+            depth_to_go = 5
 
         alpha = -math.inf  # starting values
         beta = math.inf
+        if self.rnd >= 30:
+            depth_to_go = 6
+        #potentail pre heuristic where you have a set/table of moves that are good to take right
+        # away with/out needing search corners and strategic positions, maybe fiter and set priority to strategic movies first?
+        # for m in range(len(valid_moves)):
+        #     if valid_moves[m] == [0, 0]:
+        #         return m
+        #     if valid_moves[m] == [0, 7]:
+        #         return m
+        #     if valid_moves[m] == [7, 0]:
+        #         return m
+        #     if valid_moves[m] == [7, 7]:
+        #         return m
+
         self.start_time = time.time()
         for i in range(len(valid_moves)):
             best_move.append(self.ab_max(valid_moves[i], depth_to_go, np.copy(self.state), deepcopy(self.rnd)+1, alpha, beta))
         print(time.time()-self.start_time)
         return best_move.index(max(best_move))
 
-    def maximize_ab(self, valid_move, depth_to_go, fake_state, rnd, alpha, beta):
-        if depth_to_go == 0 or (time.time() - self.start_time) > self.move_search_time:  # reached maximum depth
-            return self.take_random_sampling(fake_state, rnd, self.me)  # when using max, looking from "my" perspective
-        new_fake_state = self.take_move(valid_move[0], valid_move[1], self.me, fake_state)
-        valid_moves_min = self.get_hypo_valid_moves(rnd + 1, self.not_me, new_fake_state)
-
-        move_returned_values = []
-        for i in range(len(valid_moves_min)):
-            value = self.minimize_ab(valid_moves_min[i], depth_to_go - 1, np.copy(new_fake_state), rnd + 1, alpha,
-                                     beta)
-            if value >= beta:
-                return value
-            alpha = max(value, alpha)
-            move_returned_values.append(value)
-        if len(move_returned_values) == 0:
-            move_returned_values.append(0)
-        return np.amax(move_returned_values)
-
-    def minimize_ab(self, valid_move, depth_to_go, fake_state, rnd, alpha, beta):
-        if depth_to_go == 0 or (time.time() - self.start_time) > self.move_search_time:
-            return self.take_random_sampling(fake_state, rnd, self.not_me)
-        new_fake_state = self.take_move(valid_move[0], valid_move[1], self.not_me, fake_state)
-        valid_moves_max = self.get_hypo_valid_moves(rnd + 1, self.me, new_fake_state)
-
-        move_returned_values = []
-        for i in range(len(valid_moves_max)):
-            value = (
-                self.maximize_ab(valid_moves_max[i], depth_to_go - 1, np.copy(new_fake_state), rnd + 1, alpha, beta))
-            if value <= alpha:
-                return value
-            beta = min(beta, value)
-            move_returned_values.append(value)
-        if len(move_returned_values) == 0:
-            move_returned_values.append(0)
-        return np.amin(move_returned_values)
-    #
-    # def min_max(self, valid_moves):
-    #     best_move = []
-    #     depth_to_go = 4
-    #     for i in range(len(valid_moves)):
-    #         best_move.append(self.maximize(valid_moves[i], depth_to_go, deepcopy(self.state), self.rnd))
-    #     return best_move.index(max(best_move))
-    #
-    # def maximize(self, valid_move, depth_to_go, fake_state, rnd):
-    #     if depth_to_go == 0:
-    #         return self.use_heuristic(fake_state, rnd, self.me)
+    # def maximize_ab(self, valid_move, depth_to_go, fake_state, rnd, alpha, beta):
+    #     if depth_to_go == 0 or (time.time() - self.start_time) > self.move_search_time:  # reached maximum depth
+    #         return self.take_random_sampling(fake_state, rnd, self.me)  # when using max, looking from "my" perspective
     #     new_fake_state = self.take_move(valid_move[0], valid_move[1], self.me, fake_state)
     #     valid_moves_min = self.get_hypo_valid_moves(rnd + 1, self.not_me, new_fake_state)
     #
     #     move_returned_values = []
     #     for i in range(len(valid_moves_min)):
-    #         move_returned_values.append(
-    #             self.minimize(valid_moves_min[i], depth_to_go - 1, deepcopy(new_fake_state), rnd + 1))
+    #         value = self.minimize_ab(valid_moves_min[i], depth_to_go - 1, np.copy(new_fake_state), rnd + 1, alpha,
+    #                                  beta)
+    #         if value >= beta:
+    #             return value
+    #         alpha = max(value, alpha)
+    #         move_returned_values.append(value)
     #     if len(move_returned_values) == 0:
     #         move_returned_values.append(0)
     #     return np.amax(move_returned_values)
     #
-    # def minimize(self, valid_move, depth_to_go, fake_state, rnd):
-    #     if depth_to_go == 0:
-    #         return self.use_heuristic(fake_state, rnd, self.not_me)
+    # def minimize_ab(self, valid_move, depth_to_go, fake_state, rnd, alpha, beta):
+    #     if depth_to_go == 0 or (time.time() - self.start_time) > self.move_search_time:
+    #         return self.take_random_sampling(fake_state, rnd, self.not_me)
     #     new_fake_state = self.take_move(valid_move[0], valid_move[1], self.not_me, fake_state)
     #     valid_moves_max = self.get_hypo_valid_moves(rnd + 1, self.me, new_fake_state)
     #
     #     move_returned_values = []
     #     for i in range(len(valid_moves_max)):
-    #         move_returned_values.append(
-    #             self.maximize(valid_moves_max[i], (depth_to_go - 1), deepcopy(new_fake_state), rnd + 1))
+    #         value = (
+    #             self.maximize_ab(valid_moves_max[i], depth_to_go - 1, np.copy(new_fake_state), rnd + 1, alpha, beta))
+    #         if value <= alpha:
+    #             return value
+    #         beta = min(beta, value)
+    #         move_returned_values.append(value)
     #     if len(move_returned_values) == 0:
     #         move_returned_values.append(0)
     #     return np.amin(move_returned_values)
+
 
     def ab_max(self, valid_move, depth_left, board, rnd, alpha, beta):
 
@@ -158,8 +140,19 @@ class AiGuy:
         new_board = self.take_move(valid_move[0], valid_move[1], self.not_me, board)
 
         if depth_left == 0 or (time.time() - self.start_time) > self.move_search_time:  # if at leaf node, return expected utility
-            return self.use_heuristic(new_board, rnd, self.not_me)
+            return self.use_heuristic(new_board, rnd, self.me)
         new_moves = self.get_hypo_valid_moves(rnd, self.me, new_board)
+        # pseudo heuristics, if we impliment pre heuristics we wont need to use these
+        # for m in range(len(new_moves)):
+        #     if new_moves[m] == [0, 0]:
+        #         return self.use_heuristic(self.take_move(0, 0, self.me, board), rnd, self.me)
+        #     if new_moves[m] == [0, 7]:
+        #         return self.use_heuristic(self.take_move(0, 7, self.me, board), rnd, self.me)
+        #     if new_moves[m] == [7, 0]:
+        #         return self.use_heuristic(self.take_move(7, 0, self.me, board), rnd, self.me)
+        #     if new_moves[m] == [7, 7]:
+        #         return self.use_heuristic(self.take_move(7, 7, self.me, board), rnd, self.me)
+
 
         for x in new_moves:
             value = min(value, self.ab_max(x, depth_left-1, np.copy(new_board), rnd+1, alpha, beta))
@@ -209,18 +202,17 @@ class AiGuy:
         :param me: 1 or 2 depending on player perspective
         :return: a utility (int)
         """
-        opp = 1 if me == 2 else 2
 
-        if rnd < 44:
-            stability = self.stability(board, me)
-            strategic = self.strategic_points(board, me)
-            mobility = self.mobility(board, rnd, opp)
-            flipped_with_move = self.score_board(board, me)
-            # print(strategic * .8 + stability * .5 + mobility * .8 + flipped_with_move * .2)
-            return strategic * .8 + stability * .5 + mobility * .8 + flipped_with_move * .5
-        else:
-            points = self.score_board(board, me) * (self.stability(board, me) + 1) * self.strategic_points(board, me)
-            return points
+        # if rnd < 44:
+        stability = self.stability(board, me)
+        strategic = self.strategic_points(board, me)
+        # mobility = self.mobility(board, rnd, my_moves)
+        flipped_with_move = self.score_board(board, me)
+        # print(strategic * .8 + stability * .5 + mobility * .8 + flipped_with_move * .2)
+        return strategic + stability * .5 + flipped_with_move
+        # else:
+        #     points = self.score_board(board, me) * (self.stability(board, me) + 1) * self.strategic_points(board, me)
+        #     return points
 
     def strategic_points(self, board, me):
         strategic_points = 0
@@ -240,7 +232,7 @@ class AiGuy:
         else:
             return player_two_score - player_one_score
 
-    def mobility(self, board, rnd, me):
+    def mobility(self, board, rnd, mymoves):
         """
         Returns the number of available moves to the given player "me" in the hypothetical board.
         :param board: the hypothetical board
@@ -248,8 +240,8 @@ class AiGuy:
         :param me: the player to test for
         :return: the number of available moves (int)
         """
-        oppMove = 1 if len(self.get_hypo_valid_moves(rnd, self.not_me, board)) == 0 else len(self.get_hypo_valid_moves(rnd, self.not_me, board))
-        return len(self.get_hypo_valid_moves(rnd, self.me, board))/oppMove
+
+        return len(self.get_hypo_valid_moves(rnd, self.me, board))/len(mymoves)
 
     def stability(self, board, me):
         """
@@ -467,7 +459,7 @@ class AiGuy:
                         if self.hypo_could_be(i, j, me, board):
                             valid_moves.append([i, j])
 
-        return np.array(valid_moves)
+        return valid_moves
 
     def hypo_could_be(self, row, col, me, board):
         """
@@ -679,7 +671,7 @@ class AiGuy:
                 my_move = self.alpha_beta(valid_moves)
 
                 # print("Valid moves: {}".format(valid_moves))
-                # print("Selected move: {}".format(valid_moves[my_move]))
+                print("Selected move: {}".format(valid_moves[my_move]))
 
                 # Send selection
                 selection = str(valid_moves[my_move][0]) + "\n" + str(valid_moves[my_move][1]) + "\n"
