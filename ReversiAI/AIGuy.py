@@ -28,6 +28,12 @@ class AiGuy:
         [-10, -200, -2,  5,  5, -4, -200, -10],
         [100,  -10, 100,  2,  2, 100, -10,  100]
     ]
+    strategic_spots = [
+        [0, 0], [0, 7], [7, 0], [7, 7], [2, 0],
+        [2, 7], [2, 2], [2, 5], [0, 2], [0, 5],
+        [7, 2], [7, 5], [5, 0], [5, 5], [5, 2],
+        [5, 7]
+    ]
 
     t1 = 0.0  # the amount of time remaining to player 1
     t2 = 0.0  # the amount of time remaining to player 2
@@ -46,28 +52,25 @@ class AiGuy:
         """
         best_move = []
         self.move_search_time = 99999
-        if self.rnd <= 10:
+        if self.rnd <= 30:
             depth_to_go = 3
-        if self.rnd <= 20 and self.rnd >= 10:
-            depth_to_go = 4  # adjust
+        # if self.rnd <= 20 and self.rnd >= 10:
+        #     depth_to_go = 4  # adjust
         else:
-            depth_to_go = 5
+            depth_to_go = 4
 
         alpha = -math.inf  # starting values
         beta = math.inf
-        if self.rnd >= 30:
-            depth_to_go = 6
+        if self.rnd >= 45:
+            depth_to_go = 5
+        if self.rnd >= 49:
+            depth_to_go = 16
         #potentail pre heuristic where you have a set/table of moves that are good to take right
         # away with/out needing search corners and strategic positions, maybe fiter and set priority to strategic movies first?
         # for m in range(len(valid_moves)):
-        #     if valid_moves[m] == [0, 0]:
-        #         return m
-        #     if valid_moves[m] == [0, 7]:
-        #         return m
-        #     if valid_moves[m] == [7, 0]:
-        #         return m
-        #     if valid_moves[m] == [7, 7]:
-        #         return m
+        #     for k in self.strategic_spots:
+        #         if valid_moves[m] == k:
+        #             return m
 
         self.start_time = time.time()
         for i in range(len(valid_moves)):
@@ -203,16 +206,16 @@ class AiGuy:
         :return: a utility (int)
         """
 
-        # if rnd < 44:
-        stability = self.stability(board, me)
-        strategic = self.strategic_points(board, me)
-        # mobility = self.mobility(board, rnd, my_moves)
-        flipped_with_move = self.score_board(board, me)
-        # print(strategic * .8 + stability * .5 + mobility * .8 + flipped_with_move * .2)
-        return strategic + stability * .5 + flipped_with_move
-        # else:
-        #     points = self.score_board(board, me) * (self.stability(board, me) + 1) * self.strategic_points(board, me)
-        #     return points
+        if rnd < 49:
+            stability = self.stability(board, me)
+            strategic = self.strategic_points(board, me)
+            # mobility = self.mobility(board, rnd, my_moves)
+            flipped_with_move = self.score_board(board, me)
+            # print(strategic * .8 + stability * .5 + mobility * .8 + flipped_with_move * .2)
+            return strategic + stability * .5 + flipped_with_move
+        else:
+            points = self.score_board(board, me)  # * (self.stability(board, me) + 1) * self.strategic_points(board, me)
+            return points
 
     def strategic_points(self, board, me):
         strategic_points = 0
